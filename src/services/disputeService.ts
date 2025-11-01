@@ -58,6 +58,9 @@ export class DisputeService {
 
   async getActor() {
     if (!this.actor) {
+      if (!CANISTER_IDS.arbitra_backend) {
+        throw new Error('Arbitra backend canister ID not configured. Please set ARBITRA_BACKEND_CANISTER_ID environment variable.');
+      }
       this.actor = await createActor(CANISTER_IDS.arbitra_backend, arbitraBackendIdl);
     }
     return this.actor;
@@ -69,25 +72,42 @@ export class DisputeService {
     description: string,
     amount: bigint
   ): Promise<string> {
-    const actor = await this.getActor();
-    const result = await actor.createDispute(respondent, title, description, amount);
-    
-    if ('ok' in result) {
-      return result.ok;
-    } else {
-      throw new Error(result.err);
+    try {
+      const actor = await this.getActor();
+      const result = await actor.createDispute(respondent, title, description, amount);
+      
+      if ('ok' in result) {
+        return result.ok;
+      } else {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to create dispute');
     }
   }
 
   async getDispute(disputeId: string): Promise<Dispute | null> {
-    const actor = await this.getActor();
-    const result = await actor.getDispute(disputeId);
-    return result.length > 0 ? result[0] : null;
+    try {
+      const actor = await this.getActor();
+      const result = await actor.getDispute(disputeId);
+      return result.length > 0 ? result[0] : null;
+    } catch (error) {
+      console.error('Failed to get dispute:', error);
+      return null;
+    }
   }
 
   async getAllDisputes(): Promise<Dispute[]> {
-    const actor = await this.getActor();
-    return await actor.getAllDisputes();
+    try {
+      const actor = await this.getActor();
+      return await actor.getAllDisputes();
+    } catch (error) {
+      console.error('Failed to get all disputes:', error);
+      return [];
+    }
   }
 
   async getDisputesByUser(user: Principal): Promise<Dispute[]> {
