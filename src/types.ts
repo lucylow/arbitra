@@ -1,19 +1,15 @@
 import { Principal } from '@dfinity/principal';
 
+// User roles
 export type UserRole = 'Claimant' | 'Respondent' | 'Arbitrator' | 'Admin';
 
-export type DisputeStatus = 
-  | 'Pending' 
-  | 'EvidenceSubmission' 
-  | 'UnderReview' 
-  | 'Decided' 
-  | 'Appealed' 
-  | 'Closed';
+// Dispute status
+export type DisputeStatus = 'Pending' | 'EvidenceSubmission' | 'UnderReview' | 'Decided' | 'Appealed' | 'Closed';
 
+// Evidence type
 export type EvidenceType = 'Document' | 'Image' | 'Video' | 'Audio' | 'Text';
 
-export type EscrowStatus = 'Pending' | 'Funded' | 'Released' | 'Refunded' | 'Disputed';
-
+// Evidence entry
 export interface Evidence {
   id: string;
   disputeId: string;
@@ -25,30 +21,33 @@ export interface Evidence {
   verified: boolean;
 }
 
+// Dispute case
 export interface Dispute {
   id: string;
   claimant: Principal;
   respondent: Principal;
-  arbitrator: Principal | null;
+  arbitrator?: Principal;
   title: string;
   description: string;
   amount: bigint;
   status: DisputeStatus;
   createdAt: bigint;
   updatedAt: bigint;
-  decision: string | null;
-  escrowId: string | null;
+  decision?: string;
+  escrowId?: string;
 }
 
+// Arbitrator profile
 export interface Arbitrator {
   principal: Principal;
   name: string;
   expertise: string[];
-  casesHandled: bigint;
+  casesHandled: number;
   rating: number;
   available: boolean;
 }
 
+// AI Analysis result
 export interface AIAnalysis {
   disputeId: string;
   summary: string;
@@ -58,6 +57,9 @@ export interface AIAnalysis {
   timestamp: bigint;
 }
 
+// Bitcoin escrow
+export type EscrowStatus = 'Pending' | 'Funded' | 'Released' | 'Refunded' | 'Disputed';
+
 export interface Escrow {
   id: string;
   disputeId: string;
@@ -66,9 +68,10 @@ export interface Escrow {
   beneficiary: Principal;
   status: EscrowStatus;
   createdAt: bigint;
-  releasedAt: bigint | null;
+  releasedAt?: bigint;
 }
 
+// User profile
 export interface UserProfile {
   principal: Principal;
   name: string;
