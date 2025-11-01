@@ -52,7 +52,11 @@ function App() {
       await checkAuth();
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Login failed. Please try again.');
+      if (error instanceof Error && error.message === 'UserInterrupt') {
+        alert('Internet Identity login requires an Internet Computer backend canister. This demo environment needs backend integration for full authentication functionality.');
+      } else {
+        alert('Login failed. Please try again.');
+      }
     }
   };
 
