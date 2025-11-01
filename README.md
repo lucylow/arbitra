@@ -1,73 +1,145 @@
-# Welcome to your Lovable project
+# ⚖️ Arbitra - Decentralized Legal Dispute Resolution Platform
 
-## Project info
+**Built on Internet Computer Protocol for LegalHack 2025**
 
-**URL**: https://lovable.dev/projects/48367617-3291-419d-abd3-0458d579fc29
+Arbitra is a blockchain-based platform that revolutionizes legal dispute resolution through decentralized arbitration, AI-powered analysis, cryptographic evidence verification, and Bitcoin escrow integration.
 
-## How can I edit this code?
+## 🌟 Features
 
-There are several ways of editing your application.
+### Core Functionality
+- **Dispute Management**: Create, track, and resolve legal disputes on-chain
+- **Evidence Verification**: Cryptographic hashing and tamper-proof storage of evidence
+- **AI Analysis Engine**: Intelligent case analysis with chain-of-thought reasoning
+- **Bitcoin Escrow**: Automated fund management using ICP's Bitcoin integration
+- **Internet Identity**: Secure authentication without passwords
 
-**Use Lovable**
+### Key Benefits
+- ✅ **Tamper-Resistant**: All data stored on-chain with cryptographic verification
+- ✅ **Transparent**: Complete audit trail of all dispute activities
+- ✅ **Decentralized**: No single point of control or failure
+- ✅ **Fast**: ICP's 1-2 second finality for quick transactions
+- ✅ **Cost-Effective**: Reverse gas model - users don't pay transaction fees
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/48367617-3291-419d-abd3-0458d579fc29) and start prompting.
+## 🏗️ Architecture
 
-Changes made via Lovable will be committed automatically to this repo.
+### Backend Canisters (Motoko)
+1. **arbitra_backend**: Main dispute management and user profiles
+2. **evidence_manager**: Evidence submission and verification
+3. **ai_analysis**: AI-powered dispute analysis
+4. **bitcoin_escrow**: Bitcoin escrow and settlement
 
-**Use your preferred IDE**
+### Frontend (React + TypeScript)
+- Modern React with hooks
+- TypeScript for type safety
+- Vite for fast builds
+- Internet Identity integration
+- Responsive design
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🚀 Quick Start
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
+- Node.js 18+ and pnpm
+- DFX SDK (Internet Computer SDK)
+- Git
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. **Start local Internet Computer replica**
+```bash
+dfx start --background --clean
 ```
 
-**Edit a file directly in GitHub**
+2. **Deploy canisters**
+```bash
+dfx deploy
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. **Access the application**
+Open your browser to the URL shown after deployment
 
-**Use GitHub Codespaces**
+## 📖 Usage
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Creating a Dispute
+1. Log in with Internet Identity
+2. Navigate to "Create Dispute"
+3. Fill in dispute details (title, description, respondent, amount)
+4. Submit the dispute
 
-## What technologies are used for this project?
+### Viewing Disputes
+- Navigate to "All Disputes" to see all cases
+- View detailed information including status, parties, and amounts
 
-This project is built with:
+## 🛠️ Development
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Project Structure
+```
+arbitra-icp/
+├── src/
+│   ├── arbitra_backend/      # Main arbitration canister
+│   ├── evidence_manager/     # Evidence management
+│   ├── ai_analysis/          # AI analysis engine
+│   ├── bitcoin_escrow/       # Bitcoin escrow
+│   ├── arbitra_frontend/     # React frontend
+│   └── types.mo              # Shared type definitions
+├── dfx.json                  # ICP configuration
+└── README.md
+```
 
-## How can I deploy this project?
+### Building
+```bash
+# Backend
+dfx build
 
-Simply open [Lovable](https://lovable.dev/projects/48367617-3291-419d-abd3-0458d579fc29) and click on Share -> Publish.
+# Frontend
+cd src/arbitra_frontend
+pnpm run build
+```
 
-## Can I connect a custom domain to my Lovable project?
+## 🌐 Deployment
 
-Yes, you can!
+### Local
+```bash
+dfx start --background
+dfx deploy
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### IC Mainnet
+```bash
+dfx deploy --network ic
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🎯 LegalHack 2025 Bounty Alignment
+
+### ICP Track
+- ✅ **Best Consumer Focused Legal Solution** ($4,000)
+- ✅ **Best B2B Legal System Solution** ($4,000)
+- ✅ **Best use of ICP's bitcoin integration** ($4,000)
+
+### Key Differentiators
+1. Full-stack on-chain deployment
+2. Bitcoin integration for escrow
+3. AI-powered analysis
+4. Cryptographic evidence verification
+5. Internet Identity integration
+
+## 📚 Technical Stack
+
+- **Blockchain**: Internet Computer Protocol (ICP)
+- **Smart Contracts**: Motoko
+- **Frontend**: React 19, TypeScript, Vite
+- **Authentication**: Internet Identity
+- **Bitcoin Integration**: ICP Bitcoin API
+
+## 📄 License
+
+MIT License
+
+## 🔗 Links
+
+- [Internet Computer](https://internetcomputer.org/)
+- [DFINITY Documentation](https://internetcomputer.org/docs/current/home)
+- [LegalHack 2025](https://dorahacks.io/hackathon/legal-hack/detail)
+
+---
+
+**Arbitra** - Bringing justice to the blockchain ⚖️
