@@ -2,7 +2,54 @@
 
 **Built on Internet Computer Protocol for LegalHack 2025**
 
-Arbitra is a blockchain-based platform that revolutionizes legal dispute resolution through decentralized arbitration, AI-powered analysis, cryptographic evidence verification, and Bitcoin escrow integration. This comprehensive technical documentation covers architecture, implementation details, deployment strategies, and the unique advantages of building on the Internet Computer Protocol.
+Arbitra is a blockchain-based platform that revolutionizes legal dispute resolution through decentralized arbitration, AI-powered analysis, cryptographic evidence verification, and Bitcoin escrow integration.
+
+## 🚨 Important: Local ICP Deployment Required
+
+**This application requires local Internet Computer canister deployment to function.** The Lovable preview environment cannot run the DFINITY SDK (dfx) or compile Motoko smart contracts. To run this application, you must follow the deployment steps below on your local machine.
+
+## Quick Start Guide
+
+### Prerequisites
+
+- [DFINITY SDK (dfx)](https://internetcomputer.org/docs/current/developer-docs/setup/install) v0.14.0+
+- [Node.js](https://nodejs.org/) v16+
+- [pnpm](https://pnpm.io/) or npm
+
+### Local Deployment Steps
+
+1. **Install DFINITY SDK**
+   ```bash
+   sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
+   ```
+
+2. **Start Local ICP Replica**
+   ```bash
+   dfx start --background --clean
+   ```
+
+3. **Deploy All Canisters**
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+4. **Configure Environment**
+   
+   Copy canister IDs from deployment output to `.env`:
+   ```bash
+   ARBITRA_BACKEND_CANISTER_ID=<from-deployment-output>
+   EVIDENCE_MANAGER_CANISTER_ID=<from-deployment-output>
+   AI_ANALYSIS_CANISTER_ID=<from-deployment-output>
+   BITCOIN_ESCROW_CANISTER_ID=<from-deployment-output>
+   DFX_NETWORK=local
+   ```
+
+5. **Access Application**
+   
+   Open the URL shown in deployment output (typically `http://localhost:4943?canisterId=<frontend-canister-id>`)
+
+## Technical Overview
 
 ---
 
