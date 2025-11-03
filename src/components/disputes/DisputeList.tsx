@@ -14,7 +14,7 @@ interface DisputeListProps {
 }
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ size?: number }> }> = {
+  const statusConfig: Record<string, { color: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = {
     'Draft': { color: 'bg-gray-100 text-gray-800', icon: FileText },
     'Active': { color: 'bg-blue-100 text-blue-800', icon: Clock },
     'EvidenceSubmission': { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },

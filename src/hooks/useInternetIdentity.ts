@@ -4,7 +4,6 @@ import { Principal } from '@dfinity/principal'
 import { getAuthClient, login, logout, isAuthenticated as checkAuth, getPrincipal } from '../services/agent'
 
 export const useInternetIdentity = () => {
-  const [authClient, setAuthClient] = useState<AuthClient | null>(null)
   const [identity, setIdentity] = useState<Principal | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -12,8 +11,7 @@ export const useInternetIdentity = () => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const client = await getAuthClient()
-        setAuthClient(client)
+        await getAuthClient()
         
         const authenticated = await checkAuth()
         setIsAuthenticated(authenticated)
