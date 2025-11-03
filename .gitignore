@@ -6,6 +6,7 @@ canisters/
 # Frontend build
 dist/
 node_modules/
+node_modules/**/*
 
 # Environment files
 .env.local
@@ -40,4 +41,3 @@ coverage/
 
 # Build artifacts
 build/
-

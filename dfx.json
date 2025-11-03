@@ -27,12 +27,24 @@
       "main": "src/legal_framework/main.mo",
       "type": "motoko"
     },
+    "legal_agreements": {
+      "main": "src/legal_agreements/main.mo",
+      "type": "motoko"
+    },
+    "legal_compliance": {
+      "main": "src/legal_compliance/main.mo",
+      "type": "motoko"
+    },
     "arbitrator_registry": {
       "main": "src/arbitrator_registry/main.mo",
       "type": "motoko"
     },
     "evidence_chain": {
       "main": "src/evidence_chain/main.mo",
+      "type": "motoko"
+    },
+    "evidence_verifier": {
+      "main": "src/evidence_verifier/main.mo",
       "type": "motoko"
     },
     "arbitra_frontend": {
@@ -42,8 +54,11 @@
         "ai_analysis",
         "bitcoin_escrow",
         "legal_framework",
+        "legal_agreements",
+        "legal_compliance",
         "arbitrator_registry",
-        "evidence_chain"
+        "evidence_chain",
+        "evidence_verifier"
       ],
       "frontend": {
         "entrypoint": "dist/index.html"

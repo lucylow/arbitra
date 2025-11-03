@@ -1,3 +1,0 @@
-service : {
-  health: () -> (text) query;
-}
