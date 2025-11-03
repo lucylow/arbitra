@@ -30,8 +30,17 @@ actor ArbitraBackend {
 
   // Pre-upgrade hook - save state
   system func preupgrade() {
-    disputeArray := HashMap.toArray(disputeMap) |> Array.map<(Nat, Dispute), Dispute>(_, func(x) { x.1 });
-    userArray := HashMap.toArray(userMap);
+    let disputeBuffer = Buffer.Buffer<Dispute>(disputeMap.size());
+    for ((_, dispute) in disputeMap.entries()) {
+      disputeBuffer.add(dispute);
+    };
+    disputeArray := Buffer.toArray(disputeBuffer);
+    
+    let userBuffer = Buffer.Buffer<(Principal, UserProfile)>(userMap.size());
+    for ((principal, profile) in userMap.entries()) {
+      userBuffer.add((principal, profile));
+    };
+    userArray := Buffer.toArray(userBuffer);
   };
 
   // Post-upgrade hook - restore state
@@ -102,7 +111,7 @@ actor ArbitraBackend {
   };
 
   // Public comprehensive createDispute method (with all fields)
-  public shared(msg) func createDisputeComprehensive(
+  public shared(msg) func createDisputeFull(
     title: Text,
     description: Text,
     defendant: Principal,
@@ -132,7 +141,8 @@ actor ArbitraBackend {
     };
   };
 
-  public query func getDispute(disputeId: Nat) : async Result.Result<Dispute, Text> {
+  // Internal getDispute (uses Nat ID and returns Dispute type)
+  public query func getDisputeInternal(disputeId: Nat) : async Result.Result<Dispute, Text> {
     switch (disputeMap.get(disputeId)) {
       case null { #err("Dispute not found") };
       case (?dispute) { #ok(dispute) };
