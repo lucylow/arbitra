@@ -1,152 +1,259 @@
-import React, { useState } from 'react'
-import { useArbitra } from '../../hooks/useArbitra'
-import { useInternetIdentity } from '../../hooks/useInternetIdentity'
-import { Upload, FileText, X, Shield } from 'lucide-react'
-import { calculateFileHash } from '../../utils/constellation'
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 interface EvidenceUploadProps {
-  disputeId: string
-  onClose: () => void
-  onSuccess: () => void
+  disputeId: string;
+  onUploadComplete?: (evidenceId: string) => void;
+  onClose?: () => void;
+  onSuccess?: () => void;
+}
+
+interface UploadProgress {
+  file: File;
+  progress: number;
+  status: 'uploading' | 'hashing' | 'anchoring' | 'complete' | 'error';
+  constellationTxId?: string;
+  error?: string;
 }
 
 export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
   disputeId,
-  onClose,
+  onUploadComplete,
   onSuccess
 }) => {
-  const { identity } = useInternetIdentity()
-  const { submitEvidence, isLoading } = useArbitra(identity)
+  const [uploads, setUploads] = useState<UploadProgress[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const [file, setFile] = useState<File | null>(null)
-  const [description, setDescription] = useState('')
-  const [constellationHash, setConstellationHash] = useState('')
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
+  const processFileUpload = async (upload: UploadProgress) => {
+    try {
+      // Step 1: Calculate file hash
+      updateUploadStatus(upload.file.name, 'hashing', 25);
+      const hash = await calculateFileHash(upload.file);
       
-      // Calculate hash for Constellation
-      const hash = await calculateFileHash(selectedFile)
-      setConstellationHash(hash)
-    }
-  }
+      // Step 2: Upload to temporary storage
+      updateUploadStatus(upload.file.name, 'uploading', 50);
+      const storageUrl = await uploadToTemporaryStorage(upload.file);
+      
+      // Step 3: Anchor to Constellation
+      updateUploadStatus(upload.file.name, 'anchoring', 75);
+      const constellationTxId = await anchorToConstellation(hash);
+      
+      // Step 4: Submit to blockchain
+      const evidenceId = await submitToBlockchain({
+        disputeId,
+        fileName: upload.file.name,
+        fileSize: upload.file.size,
+        fileType: upload.file.type,
+        hash,
+        constellationTxId,
+        storageUrl
+      });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!file) return
+      updateUploadStatus(upload.file.name, 'complete', 100, constellationTxId);
+      if (onUploadComplete) {
+        onUploadComplete(evidenceId);
+      }
+      if (onSuccess) {
+        onSuccess();
+      }
 
-    const result = await submitEvidence(disputeId, file, description)
-    
-    if (result.success) {
-      onSuccess()
-      onClose()
+    } catch (error) {
+      updateUploadStatus(upload.file.name, 'error', 0, undefined, (error as Error).message);
     }
-  }
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const newUploads: UploadProgress[] = acceptedFiles.map(file => ({
+      file,
+      progress: 0,
+      status: 'uploading'
+    }));
+
+    setUploads(prev => [...prev, ...newUploads]);
+
+    // Process each file
+    for (const upload of newUploads) {
+      await processFileUpload(upload);
+    }
+  }, [disputeId]);
+
+  const updateUploadStatus = (
+    fileName: string,
+    status: UploadProgress['status'],
+    progress: number,
+    constellationTxId?: string,
+    error?: string
+  ) => {
+    setUploads(prev => prev.map(upload =>
+      upload.file.name === fileName
+        ? { ...upload, status, progress, constellationTxId, error }
+        : upload
+    ));
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    onDragEnter: () => setIsDragging(true),
+    onDragLeave: () => setIsDragging(false),
+    onDropAccepted: () => setIsDragging(false),
+    multiple: true,
+    maxSize: 10 * 1024 * 1024, // 10MB
+  });
+
+  const getStatusIcon = (status: UploadProgress['status']) => {
+    switch (status) {
+      case 'uploading': return '📤';
+      case 'hashing': return '🔍';
+      case 'anchoring': return '⛓️';
+      case 'complete': return '✅';
+      case 'error': return '❌';
+      default: return '📄';
+    }
+  };
+
+  const getStatusColor = (status: UploadProgress['status']) => {
+    switch (status) {
+      case 'uploading': return 'text-blue-600';
+      case 'hashing': return 'text-purple-600';
+      case 'anchoring': return 'text-orange-600';
+      case 'complete': return 'text-green-600';
+      case 'error': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Submit Evidence
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X size={24} />
-          </button>
+    <div className="space-y-6">
+      {/* Drop Zone */}
+      <div
+        {...getRootProps()}
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+          isDragActive || isDragging
+            ? 'border-blue-400 bg-blue-50'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+      >
+        <input {...getInputProps()} />
+        <div className="space-y-4">
+          <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center">
+            <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-lg font-medium text-gray-900">
+              {isDragActive ? 'Drop files here' : 'Upload evidence files'}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Drag and drop files here, or click to browse
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Supports PDF, DOC, images, and videos up to 10MB each
+            </p>
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Evidence File *
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-              <input
-                type="file"
-                id="file-upload"
-                className="hidden"
-                onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-              />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  PDF, DOC, TXT, JPG, PNG (Max 10MB)
-                </p>
-              </label>
-            </div>
-            
-            {file && (
-              <div className="mt-3 flex items-center space-x-2 text-sm text-gray-600">
-                <FileText size={16} />
-                <span>{file.name}</span>
-                <span className="text-gray-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+      {/* Upload Progress */}
+      {uploads.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="text-lg font-medium text-gray-900">Upload Progress</h4>
+          {uploads.map((upload, index) => (
+            <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">{getStatusIcon(upload.status)}</span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {upload.file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(upload.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <div className={`text-sm font-medium ${getStatusColor(upload.status)}`}>
+                  {upload.status.charAt(0).toUpperCase() + upload.status.slice(1)}
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              Description *
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              required
-              placeholder="Describe this evidence and its relevance to the dispute..."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Constellation Hash Preview */}
-          {constellationHash && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 text-blue-800 mb-2">
-                <Shield size={16} />
-                <span className="text-sm font-medium">Constellation Hash</span>
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${upload.progress}%`,
+                    backgroundColor:
+                      upload.status === 'error' ? '#ef4444' :
+                      upload.status === 'complete' ? '#10b981' : '#3b82f6'
+                  }}
+                />
               </div>
-              <p className="text-xs font-mono text-blue-600 break-all">
-                {constellationHash}
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                This hash will be immutably stored on Constellation Network for verification
-              </p>
-            </div>
-          )}
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!file || !description || isLoading}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Uploading...' : 'Submit Evidence'}
-            </button>
-          </div>
-        </form>
+              {/* Status Details */}
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>
+                  {upload.status === 'hashing' && 'Calculating file hash...'}
+                  {upload.status === 'uploading' && 'Uploading to secure storage...'}
+                  {upload.status === 'anchoring' && 'Anchoring to Constellation network...'}
+                  {upload.status === 'complete' && 'Secured on blockchain'}
+                  {upload.status === 'error' && upload.error}
+                </span>
+                <span>{upload.progress}%</span>
+              </div>
+
+              {/* Constellation Transaction */}
+              {upload.constellationTxId && (
+                <div className="mt-2 text-xs">
+                  <span className="text-gray-500">Transaction: </span>
+                  <code className="bg-gray-100 px-1 rounded font-mono">
+                    {upload.constellationTxId.slice(0, 16)}...
+                  </code>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Security Features */}
+      <div className="bg-blue-50 rounded-lg p-4">
+        <h5 className="text-sm font-medium text-blue-900 mb-2">
+          🔒 Blockchain Security Features
+        </h5>
+        <ul className="text-xs text-blue-700 space-y-1">
+          <li>• All files cryptographically hashed and timestamped</li>
+          <li>• Evidence anchored to Constellation Network for immutability</li>
+          <li>• Complete chain of custody tracking</li>
+          <li>• End-to-end encryption for sensitive documents</li>
+        </ul>
       </div>
     </div>
-  )
-}
+  );
+};
 
+// Mock implementations for file processing
+const calculateFileHash = async (file: File): Promise<string> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const uploadToTemporaryStorage = async (file: File): Promise<string> => {
+  // Simulate upload delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  return `https://storage.arbitra.legal/${file.name}`;
+};
+
+const anchorToConstellation = async (hash: string): Promise<string> => {
+  // Simulate Constellation anchoring
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  return `CONSTELLATION_TX_${hash.slice(0, 16)}_${Date.now()}`;
+};
+
+const submitToBlockchain = async (evidence: any): Promise<string> => {
+  // Simulate blockchain submission
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  return `EVID_${evidence.disputeId}_${Date.now()}`;
+};

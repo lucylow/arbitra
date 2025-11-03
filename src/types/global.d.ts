@@ -24,11 +24,20 @@ declare global {
   interface Window {
     ic?: {
       plug?: {
-        requestConnect: (options?: Record<string, unknown>) => Promise<void>;
+        requestConnect: (config?: { whitelist?: string[]; host?: string }) => Promise<boolean>;
         getPrincipal: () => Promise<import('@dfinity/principal').Principal>;
-        disconnect: () => void;
+        disconnect: () => Promise<void>;
         isConnected: () => Promise<boolean>;
+        createActor: (canisterId: string, interfaceFactory: any) => Promise<any>;
+        requestBalance: () => Promise<any>;
       };
+      stoic?: {
+        connect: () => Promise<{ principal: import('@dfinity/principal').Principal }>;
+      };
+    };
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      isMetaMask?: boolean;
     };
   }
   

@@ -1,64 +1,35 @@
-import { useState } from 'react'
-import { Layout } from './components/ui/Layout'
-import { Dashboard } from './components/dashboard/Dashboard'
-import { CreateDispute } from './components/disputes/CreateDispute'
-import { DisputeDetail } from './components/disputes/DisputeDetail'
+import { Routes, Route } from 'react-router-dom'
 import { useInternetIdentity } from './hooks/useInternetIdentity'
 import { LandingPage } from './landing/pages/LandingPage'
+import { NavBar } from './components/NavBar'
+import { HomePage } from './components/pages/HomePage'
+import { DisputesPage } from './components/pages/DisputesPage'
+import { NewDisputePage } from './components/pages/NewDisputePage'
+import { DisputeDetailPage } from './components/pages/DisputeDetailPage'
+import { ArbitratorDashboardPage } from './components/pages/ArbitratorDashboardPage'
 import './App.css'
-
-type AppPage = 'dashboard' | 'create' | 'dispute-detail'
 
 function App() {
   const { isAuthenticated, login } = useInternetIdentity()
-  const [currentPage, setCurrentPage] = useState<AppPage>('dashboard')
-  const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null)
   
   // Show landing page when not authenticated
   if (!isAuthenticated) {
     return <LandingPage onEnterApp={login} />
   }
 
-  const handleSelectDispute = (dispute: { id: string }) => {
-    setSelectedDisputeId(dispute.id)
-    setCurrentPage('dispute-detail')
-  }
-
-  const renderContent = () => {
-    switch (currentPage) {
-      case 'create':
-        return (
-          <CreateDispute
-            onSuccess={(disputeId) => {
-              setSelectedDisputeId(disputeId)
-              setCurrentPage('dispute-detail')
-            }}
-            onCancel={() => setCurrentPage('dashboard')}
-          />
-        )
-      
-      case 'dispute-detail':
-        return selectedDisputeId ? (
-          <DisputeDetail
-            disputeId={selectedDisputeId}
-            onBack={() => setCurrentPage('dashboard')}
-          />
-        ) : (
-          <Dashboard onSelectDispute={handleSelectDispute} />
-        )
-      
-      default:
-        return <Dashboard onSelectDispute={handleSelectDispute} />
-    }
-  }
-
   return (
-    <Layout 
-      currentPage={currentPage} 
-      onNavigate={(page) => setCurrentPage(page as AppPage)}
-    >
-      {renderContent()}
-    </Layout>
+    <div className="min-h-screen bg-gray-50">
+      <NavBar />
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/disputes" element={<DisputesPage />} />
+          <Route path="/disputes/new" element={<NewDisputePage />} />
+          <Route path="/disputes/:id" element={<DisputeDetailPage />} />
+          <Route path="/arbitrator" element={<ArbitratorDashboardPage />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
 

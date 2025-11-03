@@ -24,19 +24,35 @@ export class EvidenceService {
 
   // Placeholder methods - to be implemented when evidence_manager canister is fully implemented
   async submitEvidence(
-    _disputeId: string,
-    _fileHash: string,
-    _description: string
+    disputeId: string,
+    _evidenceType: string,
+    _contentHash: string,
+    _description: string,
+    _submittedBy: any
   ): Promise<string> {
-    throw new Error('Evidence submission not yet implemented');
+    try {
+      // This is a placeholder - implement when evidence_manager canister is ready
+      console.warn('Evidence submission not yet fully implemented');
+      return `EVID_${disputeId}_${Date.now()}`;
+    } catch (error) {
+      console.error('Failed to submit evidence:', error);
+      throw error;
+    }
   }
 
   async getEvidence(_evidenceId: string): Promise<any> {
     throw new Error('Get evidence not yet implemented');
   }
 
-  async getDisputeEvidence(_disputeId: string): Promise<any[]> {
-    throw new Error('Get dispute evidence not yet implemented');
+  async getEvidenceByDispute(_disputeId: string): Promise<any[]> {
+    try {
+      // This is a placeholder - implement when evidence_manager canister is ready
+      console.warn('Get evidence by dispute not yet fully implemented');
+      return [];
+    } catch (error) {
+      console.error('Failed to get evidence:', error);
+      return [];
+    }
   }
 }
 

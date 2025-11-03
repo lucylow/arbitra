@@ -23,6 +23,7 @@ actor BitcoinEscrow {
     confidenceScore: Float;
     issuedBy: Principal;
     issuedAt: Int;
+    plaintiffAward: Nat; // Percentage 0-100 for settlement calculation
   };
 
   public type EscrowStatus = {
@@ -65,10 +66,32 @@ actor BitcoinEscrow {
     txType: Text; // "DEPOSIT", "SETTLEMENT", "REFUND"
   };
 
+  // Enhanced Escrow Account with fee tracking
+  public type EscrowAccount = {
+    dispute_id: Nat;
+    total_amount: Nat;
+    net_amount: Nat; // Amount after fees
+    platform_fee: Nat;
+    status: EscrowStatus;
+    plaintiff: Principal;
+    defendant: Principal;
+    funded_at: Int;
+    currency: Text;
+  };
+
+  public type FeeTransaction = {
+    dispute_id: Nat;
+    fee_type: Text;
+    amount: Nat;
+    transaction_hash: Text;
+    timestamp: Int;
+  };
+
   // State
   private stable var escrowArray: [Escrow] = [];
   private stable var nextEscrowId: Nat = 1;
   private stable var nextTxId: Nat = 1;
+  private stable var feeTransactionsArray: [FeeTransaction] = [];
   private func natHash(n: Nat): Hash.Hash {
     Text.hash(Nat.toText(n));
   };
@@ -76,6 +99,12 @@ actor BitcoinEscrow {
   private let transactions = HashMap.HashMap<Text, Transaction>(10, Text.equal, Text.hash);
   private let balances = HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
   private let disputeToEscrowMap = HashMap.HashMap<Nat, Nat>(10, Nat.equal, natHash);
+  private let feeTransactions = HashMap.HashMap<Text, FeeTransaction>(10, Text.equal, Text.hash);
+  private var platformTreasury: Nat = 0;
+  
+  // Platform fee configuration (1.5%)
+  private let PLATFORM_FEE_PERCENTAGE : Nat = 150; // 1.5% in basis points
+  private let PLATFORM_ACCOUNT_ID : Text = "platform_treasury_account_id";
 
   // Pre-upgrade
   system func preupgrade() {
@@ -84,6 +113,12 @@ actor BitcoinEscrow {
       buffer.add(escrow);
     };
     escrowArray := Buffer.toArray(buffer);
+    
+    let feeBuffer = Buffer.Buffer<FeeTransaction>(feeTransactions.size());
+    for ((_, feeTx) in feeTransactions.entries()) {
+      feeBuffer.add(feeTx);
+    };
+    feeTransactionsArray := Buffer.toArray(feeBuffer);
   };
 
   // Post-upgrade
@@ -91,6 +126,10 @@ actor BitcoinEscrow {
     for (escrow in escrowArray.vals()) {
       escrowAccounts.put(escrow.id, escrow);
       disputeToEscrowMap.put(escrow.disputeId, escrow.id);
+    };
+    
+    for (feeTx in feeTransactionsArray.vals()) {
+      feeTransactions.put(feeTx.transaction_hash, feeTx);
     };
   };
 
@@ -195,11 +234,17 @@ actor BitcoinEscrow {
     };
   };
 
-  // ===== SETTLEMENT EXECUTION =====
+  // ===== SETTLEMENT EXECUTION WITH MONETIZATION =====
   public shared ({ caller }) func executeSettlement(
     disputeId: Nat,
     ruling: Ruling
-  ) : async Result.Result<Text, Text> {
+  ) : async Result.Result<{
+    success: Bool;
+    plaintiff_amount: Nat;
+    defendant_amount: Nat;
+    platform_fee: Nat;
+    transaction_hash: Text;
+  }, Text> {
     
     // Find escrow account for this dispute
     var targetEscrow: ?Escrow = null;
@@ -225,13 +270,31 @@ actor BitcoinEscrow {
           return #err("Escrow not funded");
         };
 
-        // Calculate settlement amounts
-        let plaintiffAmount: Nat = (escrow.amount * ruling.plaintiffAward) / 100;
-        let defendantAmount: Nat = escrow.amount - plaintiffAmount;
+        // Calculate platform fee
+        let platform_fee = (escrow.amount * PLATFORM_FEE_PERCENTAGE) / 10000;
+        let net_amount = escrow.amount - platform_fee;
+
+        // Calculate settlement amounts based on ruling
+        // Assuming ruling.plaintiffAward is a percentage 0-100
+        let plaintiffAwardPct = if (ruling.plaintiffAward > 100) { 100 } else { ruling.plaintiffAward };
+        let plaintiffAmount: Nat = (net_amount * plaintiffAwardPct) / 100;
+        let defendantAmount: Nat = net_amount - plaintiffAmount;
 
         // Execute settlements
         let plaintiffTx = await _transferFunds(escrow.depositor, plaintiffAmount, escrow.currency, disputeId, "SETTLEMENT");
         let defendantTx = await _transferFunds(escrow.beneficiary, defendantAmount, escrow.currency, disputeId, "SETTLEMENT");
+        
+        // Collect platform fee to treasury
+        let fee_tx = await _transferFunds(
+          Principal.fromText(PLATFORM_ACCOUNT_ID), 
+          platform_fee, 
+          escrow.currency,
+          disputeId,
+          "PLATFORM_FEE"
+        );
+
+        // Update platform treasury balance
+        platformTreasury += platform_fee;
 
         // Update escrow status
         let updatedEscrow: Escrow = {
@@ -244,7 +307,24 @@ actor BitcoinEscrow {
 
         escrowAccounts.put(escrowId, updatedEscrow);
 
-        #ok(plaintiffTx)
+        // Record fee collection
+        let collectedFeeTx: FeeTransaction = {
+          dispute_id = disputeId;
+          fee_type = "platform_fee_collected";
+          amount = platform_fee;
+          transaction_hash = fee_tx;
+          timestamp = Time.now();
+        };
+
+        feeTransactions.put(fee_tx, collectedFeeTx);
+
+        #ok({
+          success = true;
+          plaintiff_amount = plaintiffAmount;
+          defendant_amount = defendantAmount;
+          platform_fee = platform_fee;
+          transaction_hash = fee_tx;
+        })
       };
     };
   };
@@ -414,6 +494,95 @@ actor BitcoinEscrow {
 
     transactions.put(txId, transaction);
     #ok(txId)
+  };
+
+  // ===== MONETIZATION & REVENUE TRACKING =====
+  public query func getPlatformRevenue() : async {
+    total_fees_collected: Nat;
+    treasury_balance: Nat;
+    recent_transactions: [FeeTransaction];
+  } {
+    // Get recent transactions from last 30 days
+    let thirtyDaysAgo = Time.now() - 30 * 24 * 60 * 60 * 1000000000; // nanoseconds
+    let recentBuffer = Buffer.Buffer<FeeTransaction>(0);
+    
+    for (feeTx in feeTransactions.vals()) {
+      if (feeTx.timestamp > thirtyDaysAgo) {
+        recentBuffer.add(feeTx);
+      };
+    };
+
+    return {
+      total_fees_collected = platformTreasury;
+      treasury_balance = platformTreasury;
+      recent_transactions = Buffer.toArray(recentBuffer);
+    };
+  };
+
+  // Enhanced createEscrow with fee calculation
+  public shared ({ caller }) func createEscrowWithFees(
+    dispute_id: Nat,
+    plaintiff: Principal,
+    defendant: Principal,
+    total_amount: Nat,
+    currency: { #ICP; #ckBTC }
+  ) : async Result.Result<Text, Text> {
+    
+    if (total_amount == 0) {
+      return #err("Amount must be greater than 0");
+    };
+    if (caller == defendant) {
+      return #err("Plaintiff and defendant must be different");
+    };
+
+    // Check if escrow already exists for this dispute
+    switch (disputeToEscrowMap.get(dispute_id)) {
+      case (?existingId) {
+        return #err("Escrow already exists for this dispute");
+      };
+      case null {};
+    };
+
+    // Calculate platform fee
+    let platform_fee = (total_amount * PLATFORM_FEE_PERCENTAGE) / 10000;
+    let net_amount = total_amount - platform_fee;
+
+    let escrow_id = nextEscrowId;
+    nextEscrowId += 1;
+
+    let escrow: Escrow = {
+      id = escrow_id;
+      disputeId = dispute_id;
+      depositor = plaintiff;
+      beneficiary = defendant;
+      amount = total_amount;
+      currency = switch (currency) {
+        case (#ICP) { "ICP" };
+        case (#ckBTC) { "ckBTC" };
+      };
+      status = #PENDING;
+      createdAt = Time.now();
+      updatedAt = Time.now();
+      settledAt = null;
+      refundedAt = null;
+      transactionHash = null;
+    };
+
+    escrowAccounts.put(escrow_id, escrow);
+    disputeToEscrowMap.put(dispute_id, escrow_id);
+
+    // Record fee reservation
+    let feeTx: FeeTransaction = {
+      dispute_id = dispute_id;
+      fee_type = "platform_fee_reserved";
+      amount = platform_fee;
+      transaction_hash = "fee_reserved_" # Nat.toText(escrow_id);
+      timestamp = Time.now();
+    };
+
+    feeTransactions.put(feeTx.transaction_hash, feeTx);
+
+    #ok(feeTx.transaction_hash)
   };
 
   // Health check

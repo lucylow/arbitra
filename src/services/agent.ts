@@ -12,15 +12,22 @@ const getEnvVar = (key: string): string => {
     // @ts-ignore - import.meta.env is available in Vite but TypeScript might not recognize it
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
-      return import.meta.env[key] || '';
+      const value = import.meta.env[key];
+      if (value) return String(value);
     }
   } catch {
     // import.meta not available (Node.js environment)
   }
   
-  // Fallback to process.env (Node.js/server-side)
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env[key] || '';
+  // Fallback to process.env (Vite defines these via define in vite.config.ts)
+  // When Vite uses define, it does string replacement, so process.env.VITE_* should work
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      const value = process.env[key];
+      if (value) return String(value);
+    }
+  } catch {
+    // process.env not available
   }
   
   return '';
@@ -32,19 +39,28 @@ const getCanisterId = (canisterName: string): string => {
   const viteKey = `VITE_${canisterName.toUpperCase()}_CANISTER_ID`;
   const nonViteKey = `${canisterName.toUpperCase()}_CANISTER_ID`;
   
-  let id = getEnvVar(viteKey) || getEnvVar(nonViteKey);
+  // Try import.meta.env (Vite's preferred way)
+  let id = '';
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      id = import.meta.env[viteKey] || import.meta.env[nonViteKey] || '';
+      if (id) id = String(id);
+    }
+  } catch {
+    // Continue to fallback
+  }
   
-  // In browser context, the vite.config.ts should have injected these values via process.env
-  // Check process.env as fallback (Vite injects via define in vite.config.ts)
+  // Fallback to process.env (injected by vite.config.ts via define)
   if (!id && typeof process !== 'undefined' && process.env) {
-    // Vite.config.ts defines process.env with canister IDs from dfx output
-    const processKey = `VITE_${canisterName.toUpperCase()}_CANISTER_ID`;
-    id = process.env[processKey] || process.env[nonViteKey] || '';
+    id = String(process.env[viteKey] || process.env[nonViteKey] || '');
   }
   
   // Log connection status
   if (!id) {
     console.warn(`⚠️  Canister ID for ${canisterName} not found. Make sure canisters are deployed and IDs are available.`);
+    console.warn(`   Tried keys: ${viteKey}, ${nonViteKey}`);
   } else {
     console.log(`✅ ${canisterName} canister ID: ${id}`);
   }
@@ -52,11 +68,12 @@ const getCanisterId = (canisterName: string): string => {
   return id || '';
 };
 
+// Compute canister IDs dynamically (not at module load time to ensure values are available)
 export const CANISTER_IDS = {
-  arbitra_backend: getCanisterId('arbitra_backend'),
-  evidence_manager: getCanisterId('evidence_manager'),
-  ai_analysis: getCanisterId('ai_analysis'),
-  bitcoin_escrow: getCanisterId('bitcoin_escrow'),
+  get arbitra_backend() { return getCanisterId('arbitra_backend'); },
+  get evidence_manager() { return getCanisterId('evidence_manager'); },
+  get ai_analysis() { return getCanisterId('ai_analysis'); },
+  get bitcoin_escrow() { return getCanisterId('bitcoin_escrow'); },
 };
 
 // Get network setting
@@ -82,6 +99,8 @@ export const createAgent = async (identity?: Identity) => {
     ? 'https://ic0.app'
     : 'http://localhost:4943';
   
+  console.log(`🔌 Creating ICP agent - Host: ${host}, Network: ${network}, Localhost: ${isLocalhost}`);
+  
   const agent = new HttpAgent({
     host,
     identity,
@@ -89,10 +108,15 @@ export const createAgent = async (identity?: Identity) => {
 
   // Fetch root key only for local development
   if (isLocalhost && network !== 'ic') {
-    await agent.fetchRootKey().catch((err: unknown) => {
-      console.warn('Unable to fetch root key. Check if the local replica is running');
-      console.error(err);
-    });
+    try {
+      console.log('🔑 Fetching root key for local development...');
+      await agent.fetchRootKey();
+      console.log('✅ Root key fetched successfully');
+    } catch (err: unknown) {
+      console.warn('⚠️  Unable to fetch root key. Check if the local replica is running on http://localhost:4943');
+      console.error('Error details:', err);
+      // Don't throw - allow connection to proceed, it might still work
+    }
   }
 
   return agent;
@@ -200,11 +224,25 @@ export const getPrincipal = async (): Promise<Principal | null> => {
 
 // Create actor for canister interaction
 export const createActor = async (canisterId: string, idlFactory: IDL.InterfaceFactory) => {
-  const identity = await getIdentity();
-  const agent = await createAgent(identity);
+  if (!canisterId || canisterId.trim() === '') {
+    throw new Error(`Cannot create actor: canister ID is empty. Please ensure canisters are deployed and IDs are configured.`);
+  }
   
-  return Actor.createActor(idlFactory, {
-    agent,
-    canisterId,
-  });
+  try {
+    const identity = await getIdentity();
+    const agent = await createAgent(identity);
+    
+    console.log(`🎭 Creating actor for canister: ${canisterId}`);
+    
+    const actor = Actor.createActor(idlFactory, {
+      agent,
+      canisterId,
+    });
+    
+    console.log(`✅ Actor created successfully for canister: ${canisterId}`);
+    return actor;
+  } catch (error) {
+    console.error(`❌ Failed to create actor for canister ${canisterId}:`, error);
+    throw error;
+  }
 };

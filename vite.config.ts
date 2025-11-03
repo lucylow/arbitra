@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import type { Plugin } from 'vite'
 
 // Load canister IDs from environment variables (production) or dfx output (local dev)
 function getCanisterIds() {
@@ -61,9 +62,36 @@ function getCanisterIds() {
   }
 }
 
+// Vite plugin to inject canister IDs into import.meta.env
+function injectCanisterIdsPlugin(): Plugin {
+  const canisterIds = getCanisterIds();
+  return {
+    name: 'inject-canister-ids',
+    config(config) {
+      // Set environment variables so they're available via import.meta.env
+      // Vite automatically exposes VITE_* prefixed variables
+      process.env.VITE_ARBITRA_BACKEND_CANISTER_ID = canisterIds.VITE_ARBITRA_BACKEND_CANISTER_ID || '';
+      process.env.VITE_EVIDENCE_MANAGER_CANISTER_ID = canisterIds.VITE_EVIDENCE_MANAGER_CANISTER_ID || '';
+      process.env.VITE_AI_ANALYSIS_CANISTER_ID = canisterIds.VITE_AI_ANALYSIS_CANISTER_ID || '';
+      process.env.VITE_BITCOIN_ESCROW_CANISTER_ID = canisterIds.VITE_BITCOIN_ESCROW_CANISTER_ID || '';
+      process.env.VITE_DFX_NETWORK = canisterIds.VITE_DFX_NETWORK || 'local';
+      process.env.VITE_INTERNET_IDENTITY_CANISTER_ID = canisterIds.VITE_INTERNET_IDENTITY_CANISTER_ID || '';
+    },
+    configResolved(config) {
+      // Log canister IDs during dev server startup
+      console.log('📦 Loaded canister IDs:');
+      console.log('   ARBITRA_BACKEND:', canisterIds.VITE_ARBITRA_BACKEND_CANISTER_ID || 'not set');
+      console.log('   EVIDENCE_MANAGER:', canisterIds.VITE_EVIDENCE_MANAGER_CANISTER_ID || 'not set');
+      console.log('   AI_ANALYSIS:', canisterIds.VITE_AI_ANALYSIS_CANISTER_ID || 'not set');
+      console.log('   BITCOIN_ESCROW:', canisterIds.VITE_BITCOIN_ESCROW_CANISTER_ID || 'not set');
+      console.log('   DFX_NETWORK:', canisterIds.VITE_DFX_NETWORK || 'local');
+    }
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), injectCanisterIdsPlugin()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -72,10 +100,22 @@ export default defineConfig({
     port: 8080,
   },
   define: {
-    'process.env': {
-      ...getCanisterIds(),
-      NODE_ENV: process.env.NODE_ENV || 'development',
-    },
+    // Expose canister IDs via process.env for runtime access
+    // Vite will replace process.env.* with actual values at build time
+    'process.env.VITE_ARBITRA_BACKEND_CANISTER_ID': JSON.stringify(getCanisterIds().VITE_ARBITRA_BACKEND_CANISTER_ID || ''),
+    'process.env.VITE_EVIDENCE_MANAGER_CANISTER_ID': JSON.stringify(getCanisterIds().VITE_EVIDENCE_MANAGER_CANISTER_ID || ''),
+    'process.env.VITE_AI_ANALYSIS_CANISTER_ID': JSON.stringify(getCanisterIds().VITE_AI_ANALYSIS_CANISTER_ID || ''),
+    'process.env.VITE_BITCOIN_ESCROW_CANISTER_ID': JSON.stringify(getCanisterIds().VITE_BITCOIN_ESCROW_CANISTER_ID || ''),
+    'process.env.VITE_DFX_NETWORK': JSON.stringify(getCanisterIds().VITE_DFX_NETWORK || 'local'),
+    'process.env.VITE_INTERNET_IDENTITY_CANISTER_ID': JSON.stringify(getCanisterIds().VITE_INTERNET_IDENTITY_CANISTER_ID || ''),
+    // Also expose non-prefixed versions
+    'process.env.ARBITRA_BACKEND_CANISTER_ID': JSON.stringify(getCanisterIds().ARBITRA_BACKEND_CANISTER_ID || ''),
+    'process.env.EVIDENCE_MANAGER_CANISTER_ID': JSON.stringify(getCanisterIds().EVIDENCE_MANAGER_CANISTER_ID || ''),
+    'process.env.AI_ANALYSIS_CANISTER_ID': JSON.stringify(getCanisterIds().AI_ANALYSIS_CANISTER_ID || ''),
+    'process.env.BITCOIN_ESCROW_CANISTER_ID': JSON.stringify(getCanisterIds().BITCOIN_ESCROW_CANISTER_ID || ''),
+    'process.env.DFX_NETWORK': JSON.stringify(getCanisterIds().DFX_NETWORK || 'local'),
+    'process.env.INTERNET_IDENTITY_CANISTER_ID': JSON.stringify(getCanisterIds().INTERNET_IDENTITY_CANISTER_ID || ''),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   envPrefix: ['VITE_', 'ARBITRA_', 'EVIDENCE_', 'AI_', 'BITCOIN_', 'DFX_', 'INTERNET_IDENTITY_'],
   resolve: {

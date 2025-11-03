@@ -241,6 +241,65 @@ export class DisputeService {
       throw error;
     }
   }
+
+  // Legal framework methods
+  
+  async verifyArbitrationAgreement(disputeId: string, agreementHash: string): Promise<void> {
+    try {
+      const actor = await getActor();
+      const result = await actor.verifyArbitrationAgreement(disputeId, agreementHash) as { ok?: null; err?: string };
+      
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
+      }
+    } catch (error) {
+      console.error('Failed to verify arbitration agreement:', error);
+      throw error;
+    }
+  }
+
+  async triggerAIAnalysis(disputeId: string): Promise<string> {
+    try {
+      const actor = await getActor();
+      const result = await actor.triggerAIAnalysis(disputeId) as { ok?: string; err?: string };
+      
+      if (result && 'ok' in result && result.ok) {
+        return result.ok;
+      } else {
+        const errMsg = result && 'err' in result ? String(result.err) : 'Unknown error';
+        throw new Error(errMsg);
+      }
+    } catch (error) {
+      console.error('Failed to trigger AI analysis:', error);
+      throw error;
+    }
+  }
+
+  async submitFinalAward(
+    disputeId: string,
+    decision: string,
+    reasoning: string,
+    keyFactors: string[],
+    consideredAIRecommendation: boolean
+  ): Promise<void> {
+    try {
+      const actor = await getActor();
+      const result = await actor.submitDecision(
+        disputeId,
+        decision,
+        reasoning,
+        keyFactors,
+        consideredAIRecommendation
+      ) as { ok?: null; err?: string };
+      
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
+      }
+    } catch (error) {
+      console.error('Failed to submit final award:', error);
+      throw error;
+    }
+  }
 }
 
 export const disputeService = new DisputeService();

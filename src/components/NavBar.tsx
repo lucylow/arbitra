@@ -1,39 +1,36 @@
 import React, { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Principal } from '@dfinity/principal'
-import { Home, FileText, Menu, X, Scale, Search, Settings, LogOut } from 'lucide-react'
-import { useInternetIdentity } from '../../hooks/useInternetIdentity'
+import { Home, FileText, Scale, Users, Menu, X, LogOut } from 'lucide-react'
+import { useInternetIdentity } from '../hooks/useInternetIdentity'
 
-interface NavigationProps {
-  currentPage?: string
-  onNavigate?: (page: string | 'dashboard' | 'create' | 'dispute-detail') => void
-}
-
-export const Navigation: React.FC<NavigationProps> = ({ 
-  currentPage = 'dashboard',
-  onNavigate 
-}) => {
+export const NavBar: React.FC = () => {
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { logout, identity } = useInternetIdentity()
 
   const navItems = [
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: Home,
-      path: 'dashboard'
+      path: '/',
+      label: 'Home',
+      icon: Home
     },
     {
-      id: 'create',
+      path: '/disputes',
+      label: 'Disputes',
+      icon: FileText
+    },
+    {
+      path: '/disputes/new',
       label: 'New Dispute',
-      icon: FileText,
-      path: 'create'
+      icon: FileText
+    },
+    {
+      path: '/arbitrator',
+      label: 'Arbitrator Dashboard',
+      icon: Users
     }
   ]
-
-  const handleNavClick = (page: string) => {
-    onNavigate?.(page as 'dashboard' | 'create' | 'dispute-detail')
-    setMobileMenuOpen(false)
-  }
 
   const handleLogout = async () => {
     try {
@@ -55,21 +52,22 @@ export const Navigation: React.FC<NavigationProps> = ({
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => handleNavClick('dashboard')}>
+            <Link to="/" className="flex items-center space-x-2">
               <Scale className="h-8 w-8 text-blue-600" />
               <span className="text-xl font-bold text-gray-900">Arbitra</span>
-            </div>
+            </Link>
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex md:space-x-1 ml-8">
               {navItems.map((item) => {
                 const Icon = item.icon
-                const isActive = currentPage === item.id
+                const isActive = location.pathname === item.path || 
+                                 (item.path === '/disputes' && location.pathname.startsWith('/disputes/'))
                 
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.path)}
+                  <Link
+                    key={item.path}
+                    to={item.path}
                     className={`
                       flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
                       ${isActive
@@ -80,7 +78,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   >
                     <Icon size={18} className={isActive ? 'text-blue-600' : 'text-gray-500'} />
                     <span>{item.label}</span>
-                  </button>
+                  </Link>
                 )
               })}
             </div>
@@ -88,22 +86,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Side - User Actions */}
           <div className="flex items-center space-x-4">
-            {/* Search (Optional) */}
-            <button
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              title="Search"
-            >
-              <Search size={18} />
-            </button>
-
-            {/* Settings (Optional) */}
-            <button
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              title="Settings"
-            >
-              <Settings size={18} />
-            </button>
-
             {/* User Info - Desktop */}
             <div className="hidden md:flex items-center space-x-3">
               <div className="text-right">
@@ -138,12 +120,14 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="px-4 py-2 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = currentPage === item.id
+              const isActive = location.pathname === item.path || 
+                               (item.path === '/disputes' && location.pathname.startsWith('/disputes/'))
               
               return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.path)}
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
                   className={`
                     w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
                     ${isActive
@@ -154,7 +138,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 >
                   <Icon size={20} className={isActive ? 'text-blue-600' : 'text-gray-500'} />
                   <span>{item.label}</span>
-                </button>
+                </Link>
               )
             })}
             
@@ -178,3 +162,4 @@ export const Navigation: React.FC<NavigationProps> = ({
     </nav>
   )
 }
+
