@@ -23,6 +23,7 @@
     "@dfinity/candid": "^3.4.1",
     "@dfinity/identity": "^3.4.1",
     "@dfinity/principal": "^3.4.1",
+    "@types/node": "^24.9.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
