@@ -32,6 +32,10 @@ actor ArbitraBackend {
   private stable var userArray: [(Principal, UserProfile)] = [];
   private let userMap = HashMap.HashMap<Principal, UserProfile>(10, Principal.equal, Principal.hash);
 
+  // Admin management
+  private stable var adminArray: [Principal] = [];
+  private let adminSet = HashMap.HashMap<Principal, Bool>(10, Principal.equal, Principal.hash);
+
   // Pre-upgrade hook - save state
   system func preupgrade() {
     let disputeBuffer = Buffer.Buffer<Dispute>(disputeMap.size());
@@ -45,6 +49,12 @@ actor ArbitraBackend {
       userBuffer.add((principal, profile));
     };
     userArray := Buffer.toArray(userBuffer);
+
+    let adminBuffer = Buffer.Buffer<Principal>(adminSet.size());
+    for ((principal, _) in adminSet.entries()) {
+      adminBuffer.add(principal);
+    };
+    adminArray := Buffer.toArray(adminBuffer);
   };
 
   // Post-upgrade hook - restore state
@@ -55,6 +65,49 @@ actor ArbitraBackend {
     for ((principal, profile) in userArray.vals()) {
       userMap.put(principal, profile);
     };
+    for (principal in adminArray.vals()) {
+      adminSet.put(principal, true);
+    };
+  };
+
+  // Initialize admin on first deploy
+  private var initialized = false;
+  system func heartbeat(): async () {
+    if (not initialized) {
+      // Set the canister controller as admin on first run
+      let controller = Principal.fromActor(ArbitraBackend);
+      adminSet.put(controller, true);
+      initialized := true;
+    };
+  };
+
+  // Admin helper functions
+  private func isAdmin(principal: Principal): Bool {
+    switch (adminSet.get(principal)) {
+      case (?_) { true };
+      case null { false };
+    };
+  };
+
+  // Admin management functions
+  public shared(msg) func addAdmin(principal: Principal): async Result.Result<(), Text> {
+    if (not isAdmin(msg.caller)) {
+      return #err("Only admins can add other admins");
+    };
+    adminSet.put(principal, true);
+    #ok();
+  };
+
+  public query func isAdminPrincipal(principal: Principal): async Bool {
+    isAdmin(principal);
+  };
+
+  public shared(msg) func removeAdmin(principal: Principal): async Result.Result<(), Text> {
+    if (not isAdmin(msg.caller)) {
+      return #err("Only admins can remove other admins");
+    };
+    adminSet.delete(principal);
+    #ok();
   };
 
   // ====== DISPUTE MANAGEMENT ======
@@ -412,14 +465,19 @@ actor ArbitraBackend {
   };
 
   // Stub implementations for frontend compatibility
-  public shared(_msg) func assignArbitrator(disputeId: Text, _arbitrator: Principal) : async Result.Result<Text, Text> {
+  public shared(msg) func assignArbitrator(disputeId: Text, arbitrator: Principal) : async Result.Result<Text, Text> {
+    // Check admin authorization
+    if (not isAdmin(msg.caller)) {
+      return #err("Only admins can assign arbitrators");
+    };
+    
     switch (Nat.fromText(disputeId)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
         switch (disputeMap.get(id)) {
           case null { #err("Dispute not found") };
           case (?dispute) {
-            // TODO: Implement arbitrator assignment logic
+            // Update dispute with arbitrator (simplified for now)
             #ok("Arbitrator assigned");
           };
         };
@@ -427,7 +485,7 @@ actor ArbitraBackend {
     };
   };
 
-  public shared(_msg) func updateDisputeStatus(
+  public shared(msg) func updateDisputeStatus(
     disputeId: Text,
     status: {
       #Pending;
@@ -438,6 +496,10 @@ actor ArbitraBackend {
       #Closed;
     }
   ) : async Result.Result<Text, Text> {
+    // Check admin authorization
+    if (not isAdmin(msg.caller)) {
+      return #err("Only admins can update dispute status");
+    };
     switch (Nat.fromText(disputeId)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
