@@ -1,4 +1,3 @@
-import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
@@ -8,7 +7,6 @@ import Time "mo:base/Time";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
 import Hash "mo:base/Hash";
-import Iter "mo:base/Iter";
 import Types "types";
 
 actor ArbitraBackend {
@@ -24,8 +22,9 @@ actor ArbitraBackend {
   // State management - use stable memory
   private stable var disputeArray: [Dispute] = [];
   private stable var nextDisputeId: Nat = 1;
+  // Use a stable hashing function for Nat
   private func natHash(n: Nat) : Hash.Hash { 
-    Hash.hash(n)
+    Text.hash(Nat.toText(n))
   };
   private let disputeMap = HashMap.HashMap<Nat, Dispute>(10, Nat.equal, natHash);
 
@@ -413,7 +412,7 @@ actor ArbitraBackend {
   };
 
   // Stub implementations for frontend compatibility
-  public shared(msg) func assignArbitrator(disputeId: Text, arbitrator: Principal) : async Result.Result<Text, Text> {
+  public shared(_msg) func assignArbitrator(disputeId: Text, _arbitrator: Principal) : async Result.Result<Text, Text> {
     switch (Nat.fromText(disputeId)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
@@ -428,7 +427,7 @@ actor ArbitraBackend {
     };
   };
 
-  public shared(msg) func updateDisputeStatus(
+  public shared(_msg) func updateDisputeStatus(
     disputeId: Text,
     status: {
       #Pending;
@@ -528,7 +527,7 @@ actor ArbitraBackend {
     #ok("User registered");
   };
 
-  public shared(msg) func linkEscrow(disputeId: Text, escrowId: Text) : async Result.Result<Text, Text> {
+  public shared(_msg) func linkEscrow(_disputeId: Text, _escrowId: Text) : async Result.Result<Text, Text> {
     // TODO: Implement escrow linking logic
     #ok("Escrow linked");
   };

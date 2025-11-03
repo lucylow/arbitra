@@ -4,11 +4,22 @@
 
 Arbitra is a blockchain-based platform that revolutionizes legal dispute resolution through decentralized arbitration, AI-powered analysis, cryptographic evidence verification, and Bitcoin escrow integration.
 
-## 🚨 Important: Local ICP Deployment Required
+## ✨ Lovable Cloud Compatible
 
-**This application requires local Internet Computer canister deployment to function.** The Lovable preview environment cannot run the DFINITY SDK (dfx) or compile Motoko smart contracts. To run this application, you must follow the deployment steps below on your local machine.
+**This application now works with Lovable Cloud preview!** The frontend includes mock authentication and data storage for seamless development in Lovable. For full ICP functionality, deploy the backend canisters locally using the steps below.
 
-## Quick Start Guide
+## Quick Start with Lovable
+
+To run this project in Lovable Cloud:
+
+```bash
+npm install
+npm run dev
+```
+
+The app will start with mock authentication and local storage. No backend deployment needed for preview!
+
+## Quick Start Guide (Full ICP Deployment)
 
 ### Prerequisites
 

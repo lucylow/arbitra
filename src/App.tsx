@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Principal } from '@dfinity/principal';
 import { isAuthenticated, login, logout, getPrincipal } from './services/agent';
 import { disputeService } from './services/disputeService';
-import { CANISTER_IDS } from './services/agent';
 import type { Dispute } from './types';
 import './App.css';
 
@@ -116,47 +115,6 @@ function App() {
     return (
       <div className="app">
         <div className="loading">Loading...</div>
-      </div>
-    );
-  }
-
-  // Check if ICP canisters are configured
-  if (!CANISTER_IDS.arbitra_backend) {
-    return (
-      <div className="app">
-        <div className="login-container">
-          <div className="logo">
-            <h1>⚖️ Arbitra</h1>
-            <p style={{ color: '#f59e0b' }}>⚠️ ICP Canisters Not Deployed</p>
-          </div>
-          <div className="login-card" style={{ background: '#1e293b', border: '1px solid #f59e0b' }}>
-            <h2>Development Environment Notice</h2>
-            <p style={{ marginBottom: '1rem' }}>
-              This application requires Internet Computer canisters to be deployed locally.
-              The development environment cannot run the DFINITY SDK (dfx) or compile Motoko code.
-            </p>
-            <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-              <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}><strong>To deploy locally:</strong></p>
-              <ol style={{ fontSize: '0.85rem', paddingLeft: '1.5rem', lineHeight: '1.8' }}>
-                <li>Install dfx: <code style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"</code></li>
-                <li>Start local replica: <code style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>dfx start --background</code></li>
-                <li>Deploy canisters: <code style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>chmod +x deploy.sh && ./deploy.sh</code></li>
-                <li>The deployment script automatically creates <code style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>.env.local</code> with canister IDs</li>
-                <li>Restart development server: <code style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>npm run dev</code></li>
-              </ol>
-            </div>
-            <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', marginTop: '1rem' }}>
-              <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}><strong>📝 Note:</strong></p>
-              <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>
-                After deployment, the canister IDs are automatically saved to <code style={{ background: '#1e293b', padding: '0.1rem 0.3rem', borderRadius: '0.25rem' }}>.env.local</code> by dfx.
-                The Vite config will automatically load these IDs. If you still see this message, restart your dev server.
-              </p>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '1rem' }}>
-              See <strong>README.md</strong> and <strong>SETUP_GUIDE.md</strong> for detailed instructions.
-            </p>
-          </div>
-        </div>
       </div>
     );
   }
