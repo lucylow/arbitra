@@ -1,3 +1,4 @@
+import React from 'react'
 import { ChevronRight, Home } from 'lucide-react'
 
 interface BreadcrumbItem {

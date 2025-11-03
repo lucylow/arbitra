@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Home, FileText, Menu, X, Scale, Search, Settings, LogOut } from 'lucide-react'
 import { useInternetIdentity } from '../../hooks/useInternetIdentity'
 
