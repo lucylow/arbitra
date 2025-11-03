@@ -230,11 +230,11 @@ function App() {
                 <p>Total Disputes</p>
               </div>
               <div className="stat-card">
-                <h3>{disputes.filter(d => d.status === 'Pending').length}</h3>
+                <h3>{disputes.filter((d: Dispute) => d.status === 'Pending').length}</h3>
                 <p>Pending</p>
               </div>
               <div className="stat-card">
-                <h3>{disputes.filter(d => d.status === 'Decided').length}</h3>
+                <h3>{disputes.filter((d: Dispute) => d.status === 'Decided').length}</h3>
                 <p>Decided</p>
               </div>
             </div>
@@ -256,7 +256,7 @@ function App() {
               <p className="empty-state">No disputes found. Create your first dispute to get started.</p>
             ) : (
               <div className="dispute-list">
-                {disputes.map(dispute => (
+                {disputes.map((dispute: Dispute) => (
                   <div key={dispute.id} className="dispute-card">
                     <div className="dispute-header">
                       <h3>{dispute.title}</h3>
@@ -301,7 +301,7 @@ function App() {
                   id="title"
                   type="text"
                   value={newDispute.title}
-                  onChange={(e) => setNewDispute({ ...newDispute, title: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDispute({ ...newDispute, title: e.target.value })}
                   placeholder="e.g., Payment dispute for services rendered"
                   required
                 />
@@ -312,7 +312,7 @@ function App() {
                 <textarea
                   id="description"
                   value={newDispute.description}
-                  onChange={(e) => setNewDispute({ ...newDispute, description: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewDispute({ ...newDispute, description: e.target.value })}
                   placeholder="Provide detailed information about the dispute..."
                   rows={5}
                   required
@@ -325,7 +325,7 @@ function App() {
                   id="respondent"
                   type="text"
                   value={newDispute.respondent}
-                  onChange={(e) => setNewDispute({ ...newDispute, respondent: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDispute({ ...newDispute, respondent: e.target.value })}
                   placeholder="Enter the respondent's principal ID"
                   required
                 />
@@ -337,7 +337,7 @@ function App() {
                   id="amount"
                   type="number"
                   value={newDispute.amount}
-                  onChange={(e) => setNewDispute({ ...newDispute, amount: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDispute({ ...newDispute, amount: e.target.value })}
                   placeholder="e.g., 100000"
                   min="0"
                   required

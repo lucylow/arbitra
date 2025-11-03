@@ -3,11 +3,13 @@ import { AuthClient } from '@dfinity/auth-client';
 import { Principal } from '@dfinity/principal';
 
 // Canister IDs (will be populated after deployment)
+// dfx generates variables in format: CANISTER_ID_<canister_name>
+// We use process.env which is defined in vite.config.ts
 export const CANISTER_IDS = {
-  arbitra_backend: process.env.ARBITRA_BACKEND_CANISTER_ID || '',
-  evidence_manager: process.env.EVIDENCE_MANAGER_CANISTER_ID || '',
-  ai_analysis: process.env.AI_ANALYSIS_CANISTER_ID || '',
-  bitcoin_escrow: process.env.BITCOIN_ESCROW_CANISTER_ID || '',
+  arbitra_backend: (process.env.ARBITRA_BACKEND_CANISTER_ID || '') as string,
+  evidence_manager: (process.env.EVIDENCE_MANAGER_CANISTER_ID || '') as string,
+  ai_analysis: (process.env.AI_ANALYSIS_CANISTER_ID || '') as string,
+  bitcoin_escrow: (process.env.BITCOIN_ESCROW_CANISTER_ID || '') as string,
 };
 
 // Create HTTP agent
@@ -21,7 +23,7 @@ export const createAgent = async (identity?: any) => {
 
   // Fetch root key for local development
   if (process.env.DFX_NETWORK !== 'ic') {
-    await agent.fetchRootKey().catch(err => {
+    await agent.fetchRootKey().catch((err: any) => {
       console.warn('Unable to fetch root key. Check if the local replica is running');
       console.error(err);
     });
@@ -49,7 +51,7 @@ export const login = async () => {
         ? 'https://identity.ic0.app'
         : `http://localhost:4943?canisterId=${process.env.INTERNET_IDENTITY_CANISTER_ID}`,
       onSuccess: () => resolve(),
-      onError: (error) => reject(error),
+      onError: (error: any) => reject(error),
     });
   });
 };

@@ -7,8 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
+    "build:backend": "dfx build",
+    "build:all": "dfx build && npm run build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dfx:start": "dfx start --background",
+    "dfx:stop": "dfx stop",
+    "dfx:deploy": "dfx deploy",
+    "dfx:deploy:local": "dfx deploy --network local",
+    "setup": "npm install"
   },
   "dependencies": {
     "@dfinity/agent": "^3.4.1",

@@ -93,7 +93,8 @@ export class DisputeService {
     try {
       const actor = await this.getActor();
       const result = await actor.getDispute(disputeId);
-      return result.length > 0 ? result[0] : null;
+      // IDL.Opt returns an array with 0 or 1 element
+      return (result as any[]).length > 0 ? (result as any[])[0] : null;
     } catch (error) {
       console.error('Failed to get dispute:', error);
       return null;

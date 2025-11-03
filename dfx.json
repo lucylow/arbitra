@@ -1,8 +1,15 @@
 {
+  "version": 1,
+  "build": {
+    "packtool": ""
+  },
   "canisters": {
     "arbitra_backend": {
       "main": "src/arbitra_backend/main.mo",
-      "type": "motoko"
+      "type": "motoko",
+      "source": [
+        "src/arbitra_backend"
+      ]
     },
     "evidence_manager": {
       "main": "src/evidence_manager/main.mo",
@@ -24,10 +31,10 @@
         "bitcoin_escrow"
       ],
       "frontend": {
-        "entrypoint": "src/arbitra_frontend/dist/index.html"
+        "entrypoint": "dist/index.html"
       },
       "source": [
-        "src/arbitra_frontend/dist"
+        "dist"
       ],
       "type": "assets"
     }
@@ -38,6 +45,17 @@
       "packtool": ""
     }
   },
-  "output_env_file": ".env",
-  "version": 1
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": [
+        "https://ic0.app"
+      ],
+      "type": "persistent"
+    }
+  },
+  "output_env_file": ".env.local"
 }
