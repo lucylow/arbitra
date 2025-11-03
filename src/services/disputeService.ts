@@ -53,6 +53,29 @@ const arbitraBackendIdl = ({ IDL }: any) => {
   });
 };
 
+// Helper functions to convert between Variant objects and strings
+function variantStatusToString(status: any): DisputeStatus {
+  if (typeof status === 'string') {
+    return status as DisputeStatus;
+  }
+  // Handle Variant type: { Pending: null } or similar
+  const keys = Object.keys(status);
+  if (keys.length > 0) {
+    return keys[0] as DisputeStatus;
+  }
+  return 'Pending'; // default
+}
+
+function convertDisputeFromBackend(dispute: any): Dispute {
+  return {
+    ...dispute,
+    status: variantStatusToString(dispute.status),
+    amount: typeof dispute.amount === 'bigint' ? dispute.amount : BigInt(dispute.amount),
+    createdAt: typeof dispute.createdAt === 'bigint' ? dispute.createdAt : BigInt(dispute.createdAt),
+    updatedAt: typeof dispute.updatedAt === 'bigint' ? dispute.updatedAt : BigInt(dispute.updatedAt),
+  };
+}
+
 export class DisputeService {
   private actor: any = null;
 
@@ -94,7 +117,10 @@ export class DisputeService {
       const actor = await this.getActor();
       const result = await actor.getDispute(disputeId);
       // IDL.Opt returns an array with 0 or 1 element
-      return (result as any[]).length > 0 ? (result as any[])[0] : null;
+      if ((result as any[]).length > 0) {
+        return convertDisputeFromBackend((result as any[])[0]);
+      }
+      return null;
     } catch (error) {
       console.error('Failed to get dispute:', error);
       return null;
@@ -104,7 +130,8 @@ export class DisputeService {
   async getAllDisputes(): Promise<Dispute[]> {
     try {
       const actor = await this.getActor();
-      return await actor.getAllDisputes();
+      const disputes = await actor.getAllDisputes();
+      return disputes.map((d: any) => convertDisputeFromBackend(d));
     } catch (error) {
       console.error('Failed to get all disputes:', error);
       return [];
@@ -112,8 +139,14 @@ export class DisputeService {
   }
 
   async getDisputesByUser(user: Principal): Promise<Dispute[]> {
-    const actor = await this.getActor();
-    return await actor.getDisputesByUser(user);
+    try {
+      const actor = await this.getActor();
+      const disputes = await actor.getDisputesByUser(user);
+      return disputes.map((d: any) => convertDisputeFromBackend(d));
+    } catch (error) {
+      console.error('Failed to get disputes by user:', error);
+      return [];
+    }
   }
 
   async assignArbitrator(disputeId: string, arbitrator: Principal): Promise<void> {
