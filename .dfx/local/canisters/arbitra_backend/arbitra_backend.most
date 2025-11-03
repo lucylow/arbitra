@@ -1,0 +1,66 @@
+// Version: 1.0.0
+type Dispute =
+  {
+    amountInDispute : Nat;
+    arbitrationClause : Text;
+    createdAt : Int;
+    currency : Text;
+    defendant : Principal;
+    description : Text;
+    evidence : [EvidenceReference];
+    governingLaw : Text;
+    id : Nat;
+    plaintiff : Principal;
+    ruling : ?Ruling;
+    status : DisputeStatus;
+    title : Text;
+    updatedAt : Int
+  };
+type DisputeStatus =
+  {
+    #AIAnalysis;
+    #Active;
+    #Appealed;
+    #ArbitratorReview;
+    #Closed;
+    #Draft;
+    #EvidenceSubmission;
+    #Settled
+  };
+type Dispute__1 = Dispute;
+type EvidenceReference =
+  {
+    fileName : Text;
+    hash : Text;
+    id : Nat;
+    uploadedAt : Int;
+    uploadedBy : Principal
+  };
+type Ruling =
+  {
+    confidenceScore : Float;
+    decision : Text;
+    disputeId : Nat;
+    id : Nat;
+    issuedAt : Int;
+    issuedBy : Principal;
+    keyFactors : [Text];
+    reasoning : Text
+  };
+type UserProfile =
+  {
+    createdAt : Int;
+    disputesInvolved : Nat;
+    email : Text;
+    principal : Principal;
+    rating : Float;
+    userType : UserType;
+    username : Text
+  };
+type UserProfile__1 = UserProfile;
+type UserType = {#ARBITRATOR; #BUSINESS; #INDIVIDUAL};
+actor {
+  stable var disputeArray : [Dispute__1];
+  stable var nextDisputeId : Nat;
+  stable var userArray : [(Principal, UserProfile__1)]
+};

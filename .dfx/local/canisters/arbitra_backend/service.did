@@ -1,0 +1,168 @@
+type Ruling = 
+ record {
+   confidenceScore: float64;
+   decision: text;
+   disputeId: nat;
+   id: nat;
+   issuedAt: int;
+   issuedBy: principal;
+   keyFactors: vec text;
+   reasoning: text;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok: nat;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: Dispute;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type EvidenceReference = 
+ record {
+   fileName: text;
+   hash: text;
+   id: nat;
+   uploadedAt: int;
+   uploadedBy: principal;
+ };
+type DisputeStatus = 
+ variant {
+   AIAnalysis;
+   Active;
+   Appealed;
+   ArbitratorReview;
+   Closed;
+   Draft;
+   EvidenceSubmission;
+   Settled;
+ };
+type Dispute = 
+ record {
+   amountInDispute: nat;
+   arbitrationClause: text;
+   createdAt: int;
+   currency: text;
+   defendant: principal;
+   description: text;
+   evidence: vec EvidenceReference;
+   governingLaw: text;
+   id: nat;
+   plaintiff: principal;
+   ruling: opt Ruling;
+   status: DisputeStatus;
+   title: text;
+   updatedAt: int;
+ };
+service : {
+  activateDispute: (nat) -> (Result_3);
+  assignArbitrator: (text, principal) -> (Result);
+  createDispute: (principal, text, text, nat) -> (Result);
+  createDisputeFull: (text, text, principal, nat, text, text, text) ->
+   (Result_2);
+  getAllDisputes: () ->
+   (vec
+     record {
+       amount: nat;
+       arbitrator: opt principal;
+       claimant: principal;
+       createdAt: int;
+       decision: opt text;
+       description: text;
+       escrowId: opt text;
+       id: text;
+       respondent: principal;
+       status:
+        variant {
+          Appealed;
+          Closed;
+          Decided;
+          EvidenceSubmission;
+          Pending;
+          UnderReview;
+        };
+       title: text;
+       updatedAt: int;
+     }) query;
+  getAllDisputesInternal: () -> (vec Dispute) query;
+  getDispute: (text) ->
+   (opt
+     record {
+       amount: nat;
+       arbitrator: opt principal;
+       claimant: principal;
+       createdAt: int;
+       decision: opt text;
+       description: text;
+       escrowId: opt text;
+       id: text;
+       respondent: principal;
+       status:
+        variant {
+          Appealed;
+          Closed;
+          Decided;
+          EvidenceSubmission;
+          Pending;
+          UnderReview;
+        };
+       title: text;
+       updatedAt: int;
+     }) query;
+  getDisputeInternal: (nat) -> (Result_1) query;
+  getDisputesByUser: (principal) ->
+   (vec
+     record {
+       amount: nat;
+       arbitrator: opt principal;
+       claimant: principal;
+       createdAt: int;
+       decision: opt text;
+       description: text;
+       escrowId: opt text;
+       id: text;
+       respondent: principal;
+       status:
+        variant {
+          Appealed;
+          Closed;
+          Decided;
+          EvidenceSubmission;
+          Pending;
+          UnderReview;
+        };
+       title: text;
+       updatedAt: int;
+     }) query;
+  getUserDisputes: (principal) -> (vec Dispute) query;
+  health: () -> (text) query;
+  linkEscrow: (text, text) -> (Result);
+  registerUser: (text, text,
+   variant {
+     Admin;
+     Arbitrator;
+     Claimant;
+     Respondent;
+   }) -> (Result);
+  submitDecision: (text, text) -> (Result);
+  updateDisputeStatus: (text,
+   variant {
+     Appealed;
+     Closed;
+     Decided;
+     EvidenceSubmission;
+     Pending;
+     UnderReview;
+   }) -> (Result);
+}
