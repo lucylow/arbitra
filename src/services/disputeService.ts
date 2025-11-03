@@ -85,12 +85,13 @@ export class DisputeService {
   ): Promise<string> {
     try {
       const actor = await getActor();
-      const result = await actor.createDispute(respondent, title, description, amount);
+      const result = await actor.createDispute(respondent, title, description, amount) as { ok?: string; err?: string };
       
-      if ('ok' in result) {
+      if (result && 'ok' in result && result.ok) {
         return result.ok;
       } else {
-        throw new Error(result.err);
+        const errMsg = result && 'err' in result ? String(result.err) : 'Unknown error';
+        throw new Error(errMsg);
       }
     } catch (error) {
       console.error('Failed to create dispute:', error);
@@ -101,9 +102,9 @@ export class DisputeService {
   async getDispute(disputeId: string): Promise<Dispute | null> {
     try {
       const actor = await getActor();
-      const result = await actor.getDispute(disputeId);
+      const result = await actor.getDispute(disputeId) as any[];
       
-      if (result && result.length > 0) {
+      if (result && Array.isArray(result) && result.length > 0) {
         return convertBackendDispute(result[0]);
       }
       return null;
@@ -116,7 +117,7 @@ export class DisputeService {
   async getAllDisputes(): Promise<Dispute[]> {
     try {
       const actor = await getActor();
-      const disputes = await actor.getAllDisputes();
+      const disputes = await actor.getAllDisputes() as any[];
       return disputes.map(convertBackendDispute);
     } catch (error) {
       console.error('Failed to get all disputes:', error);
@@ -128,7 +129,7 @@ export class DisputeService {
   async getDisputesByUser(user: Principal): Promise<Dispute[]> {
     try {
       const actor = await getActor();
-      const disputes = await actor.getDisputesByUser(user);
+      const disputes = await actor.getDisputesByUser(user) as any[];
       return disputes.map(convertBackendDispute);
     } catch (error) {
       console.error('Failed to get disputes by user:', error);
@@ -139,10 +140,10 @@ export class DisputeService {
   async assignArbitrator(disputeId: string, arbitrator: Principal): Promise<void> {
     try {
       const actor = await getActor();
-      const result = await actor.assignArbitrator(disputeId, arbitrator);
+      const result = await actor.assignArbitrator(disputeId, arbitrator) as { ok?: null; err?: string };
       
-      if ('err' in result) {
-        throw new Error(result.err);
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
       }
     } catch (error) {
       console.error('Failed to assign arbitrator:', error);
@@ -167,10 +168,10 @@ export class DisputeService {
         }
       })();
       
-      const result = await actor.updateDisputeStatus(disputeId, backendStatus);
+      const result = await actor.updateDisputeStatus(disputeId, backendStatus) as { ok?: null; err?: string };
       
-      if ('err' in result) {
-        throw new Error(result.err);
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
       }
     } catch (error) {
       console.error('Failed to update dispute status:', error);
@@ -181,10 +182,10 @@ export class DisputeService {
   async submitDecision(disputeId: string, decision: string): Promise<void> {
     try {
       const actor = await getActor();
-      const result = await actor.submitDecision(disputeId, decision);
+      const result = await actor.submitDecision(disputeId, decision) as { ok?: null; err?: string };
       
-      if ('err' in result) {
-        throw new Error(result.err);
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
       }
     } catch (error) {
       console.error('Failed to submit decision:', error);
@@ -207,10 +208,10 @@ export class DisputeService {
         }
       })();
       
-      const result = await actor.registerUser(name, email, backendRole);
+      const result = await actor.registerUser(name, email, backendRole) as { ok?: null; err?: string };
       
-      if ('err' in result) {
-        throw new Error(result.err);
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
       }
     } catch (error) {
       console.error('Failed to register user:', error);
@@ -221,10 +222,10 @@ export class DisputeService {
   async linkEscrow(disputeId: string, escrowId: string): Promise<void> {
     try {
       const actor = await getActor();
-      const result = await actor.linkEscrow(disputeId, escrowId);
+      const result = await actor.linkEscrow(disputeId, escrowId) as { ok?: null; err?: string };
       
-      if ('err' in result) {
-        throw new Error(result.err);
+      if (result && 'err' in result && result.err) {
+        throw new Error(String(result.err));
       }
     } catch (error) {
       console.error('Failed to link escrow:', error);

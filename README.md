@@ -62,6 +62,154 @@ The app will start with mock authentication and local storage. No backend deploy
 
 ## Technical Overview
 
+Arbitra is a **fully decentralized** legal dispute resolution platform built on the Internet Computer Protocol (ICP). The system architecture consists of:
+
+- **4 Backend Canisters** (Motoko smart contracts)
+- **React Frontend** deployed on ICP Assets Canister
+- **Internet Identity** for authentication
+- **Bitcoin Chain Fusion** for escrow
+- **Constellation Network** for evidence anchoring
+
+### System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        UI[React Frontend<br/>TypeScript + React 19]
+        II[Internet Identity<br/>Passwordless Auth]
+    end
+    
+    subgraph "ICP Network"
+        subgraph "Backend Canisters"
+            AB[Arbitra Backend<br/>Dispute Management]
+            EM[Evidence Manager<br/>SHA-256 Hashing]
+            AI[AI Analysis<br/>Multi-Agent System]
+            BE[Bitcoin Escrow<br/>ckBTC Integration]
+        end
+        
+        subgraph "External Integrations"
+            CN[Constellation Network<br/>Evidence Anchoring]
+            BTC[ICP Bitcoin API<br/>Chain Fusion]
+        end
+    end
+    
+    UI --> II
+    II --> AB
+    UI --> AB
+    AB --> EM
+    AB --> AI
+    AB --> BE
+    EM --> CN
+    BE --> BTC
+    
+    style AB fill:#4A90E2
+    style EM fill:#50C878
+    style AI fill:#FF6B6B
+    style BE fill:#FFA500
+    style CN fill:#9B59B6
+    style BTC fill:#F7931A
+```
+
+### Technology Stack Diagram
+
+```mermaid
+graph LR
+    subgraph "Frontend Stack"
+        TS[TypeScript]
+        R[React 19]
+        V[Vite]
+        CSS[CSS Modules]
+    end
+    
+    subgraph "Backend Stack"
+        M[Motoko]
+        ICP[ICP Protocol]
+        IDL[Candid IDL]
+    end
+    
+    subgraph "Infrastructure"
+        DFX[DFX SDK]
+        IC[ICP Blockchain]
+        SM[Stable Memory]
+    end
+    
+    subgraph "Integrations"
+        II[Internet Identity]
+        ckBTC[ckBTC]
+        CN[Constellation]
+    end
+    
+    TS --> R
+    R --> V
+    M --> ICP
+    ICP --> IC
+    DFX --> IC
+    IC --> SM
+    R --> II
+    ICP --> ckBTC
+    ICP --> CN
+    
+    style TS fill:#3178C6
+    style R fill:#61DAFB
+    style M fill:#5EE7FF
+    style ICP fill:#29ABE2
+```
+
+### Complete System Data Flow
+
+```mermaid
+flowchart TB
+    subgraph "User Interaction Layer"
+        User[User Browser]
+        II_Auth[Internet Identity<br/>Authentication]
+    end
+    
+    subgraph "Frontend Layer"
+        React[React Application]
+        Services[Service Layer<br/>- disputeService<br/>- evidenceService<br/>- escrowService<br/>- aiAnalysisService]
+        Agent[ICP Agent<br/>@dfinity/agent]
+    end
+    
+    subgraph "ICP Canister Layer"
+        Backend[Arbitra Backend<br/>Main Orchestrator]
+        Evidence[Evidence Manager<br/>SHA-256 + Storage]
+        AI[AI Analysis<br/>Multi-Agent System]
+        Escrow[Bitcoin Escrow<br/>ckBTC Management]
+    end
+    
+    subgraph "External Services"
+        Constellation[Constellation Network<br/>Evidence Anchoring]
+        Bitcoin[ICP Bitcoin API<br/>Chain Fusion]
+        ICP_Network[ICP Blockchain<br/>Consensus + Storage]
+    end
+    
+    User --> II_Auth
+    II_Auth --> React
+    React --> Services
+    Services --> Agent
+    Agent --> Backend
+    
+    Backend --> Evidence
+    Backend --> AI
+    Backend --> Escrow
+    
+    Evidence --> Constellation
+    Escrow --> Bitcoin
+    
+    Backend --> ICP_Network
+    Evidence --> ICP_Network
+    AI --> ICP_Network
+    Escrow --> ICP_Network
+    
+    style Backend fill:#4A90E2
+    style Evidence fill:#50C878
+    style AI fill:#FF6B6B
+    style Escrow fill:#FFA500
+    style Constellation fill:#9B59B6
+    style Bitcoin fill:#F7931A
+    style ICP_Network fill:#29ABE2
+```
+
 ---
 
 ## Table of Contents
@@ -162,6 +310,96 @@ Arbitra operates as a **hybrid human-AI dispute resolution system** deployed ent
 3. **Human Arbitration**: Certified arbitrators review AI recommendations and make final rulings
 4. **Trustless Escrow**: Bitcoin-backed escrow ensures funds are released only upon ruling
 5. **Immutable Evidence**: Constellation Network provides tamper-proof evidence anchoring
+
+### System Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User as User (Principal)
+    participant Frontend as React Frontend
+    participant Backend as Arbitra Backend
+    participant Evidence as Evidence Manager
+    participant AI as AI Analysis
+    participant Escrow as Bitcoin Escrow
+    participant Arb as Arbitrator
+    
+    User->>Frontend: Create Dispute
+    Frontend->>Backend: createDispute()
+    Backend->>Escrow: createEscrow(disputeId)
+    Escrow-->>Backend: escrowId
+    Backend-->>Frontend: disputeId
+    
+    User->>Frontend: Upload Evidence
+    Frontend->>Evidence: storeEvidence(file)
+    Evidence->>Evidence: Compute SHA-256 Hash
+    Evidence->>Constellation: Anchor Hash
+    Constellation-->>Evidence: txId
+    Evidence-->>Frontend: evidenceId
+    
+    User->>Escrow: Fund Escrow (ckBTC)
+    Escrow->>Escrow: Lock Funds
+    Escrow-->>Backend: Escrow Funded
+    
+    Backend->>AI: analyzeDispute(disputeId)
+    AI->>Evidence: getDisputeEvidence()
+    Evidence-->>AI: Evidence Array
+    AI->>AI: Multi-Agent Analysis
+    AI-->>Backend: PreliminaryRuling
+    
+    Backend->>Arb: Notify Arbitrator
+    Arb->>Backend: Review Case
+    Arb->>Backend: submitRuling(decision)
+    Backend->>Escrow: executeSettlement(ruling)
+    Escrow->>Escrow: Transfer Funds
+    Escrow-->>User: Settlement Complete
+```
+
+### State Machine Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Create Dispute
+    
+    Draft --> EvidenceSubmission: Activate Dispute
+    EvidenceSubmission --> EvidenceSubmission: Add Evidence
+    EvidenceSubmission --> Funded: Both Parties Fund Escrow
+    
+    Funded --> AIAnalysis: Trigger Analysis
+    AIAnalysis --> AIAnalysis: Process Evidence
+    AIAnalysis --> ArbitratorReview: Analysis Complete
+    
+    ArbitratorReview --> Decided: Arbitrator Ruling
+    ArbitratorReview --> AIAnalysis: Request Re-analysis
+    
+    Decided --> Settlement: Execute Settlement
+    Decided --> Appealed: Appeal Filed
+    
+    Appealed --> ArbitratorReview: Re-review Case
+    Appealed --> Decided: Appeal Decision
+    
+    Settlement --> Closed: Funds Released
+    Decided --> Closed: Manual Close
+    
+    Closed --> [*]
+    
+    note right of EvidenceSubmission
+        SHA-256 Hash Computation
+        Constellation Anchoring
+    end note
+    
+    note right of Funded
+        ckBTC Multi-Sig Lock
+        Time-lock Enabled
+    end note
+    
+    note right of AIAnalysis
+        Multi-Agent Processing:
+        - Credibility Agent
+        - Contract Agent
+        - Pattern Matcher
+        - Ruling Generator
+    end note
+```
 
 ### System Flow Diagram
 
@@ -346,6 +584,29 @@ Complete dispute lifecycle management from creation to resolution with transpare
 
 ### 2. Evidence Verification System
 
+#### Evidence Verification Flow
+
+```mermaid
+graph LR
+    Upload[User Uploads<br/>Evidence File] --> Hash[Compute<br/>SHA-256 Hash]
+    Hash --> Store[Store in<br/>Evidence Manager]
+    Store --> Anchor[Anchor to<br/>Constellation]
+    Anchor --> Verify[Verification<br/>Complete]
+    
+    Verify --> Audit[Audit Trail<br/>Created]
+    
+    Verify -.->|Later| Check[Verify Integrity]
+    Check --> Rehash[Recompute Hash]
+    Rehash --> Compare{Hash Match?}
+    Compare -->|Yes| Valid[Evidence Valid]
+    Compare -->|No| Invalid[Evidence Tampered]
+    
+    style Hash fill:#50C878
+    style Anchor fill:#9B59B6
+    style Valid fill:#2ECC71
+    style Invalid fill:#E74C3C
+```
+
 #### Cryptographic Hashing
 
 Every piece of evidence is processed through SHA-256 hashing:
@@ -429,35 +690,80 @@ private func recordCustodyEvent(
 
 The AI engine operates as a **multi-agent system** where specialized agents analyze different aspects of the case:
 
+```mermaid
+graph TD
+    Input[AI Analysis Request<br/>Evidence + Dispute Metadata] --> Router{Multi-Agent<br/>Router}
+    
+    Router --> CA[Credibility Agent<br/>Authenticity Check]
+    Router --> CCA[Contract Clause Agent<br/>Obligation Extraction]
+    Router --> PMA[Pattern Matcher Agent<br/>Precedent Matching]
+    
+    CA --> CA_Output[Credibility Score<br/>0.0-1.0]
+    CCA --> CCA_Output[Relevant Clauses<br/>Support Scores]
+    PMA --> PMA_Output[Pattern Matches<br/>Win Probabilities]
+    
+    CA_Output --> Synthesis[Ruling Generator Agent]
+    CCA_Output --> Synthesis
+    PMA_Output --> Synthesis
+    
+    Synthesis --> Decision{Decision Logic}
+    Decision -->|Plaintiff Score >| PW[PLAINTIFF_WINS]
+    Decision -->|Defendant Score >| DW[DEFENDANT_WINS]
+    Decision -->|Equal Scores| SP[SPLIT_DECISION]
+    
+    PW --> Output[Preliminary Ruling]
+    DW --> Output
+    SP --> Output
+    
+    Output --> Final[Final Output:<br/>- Decision<br/>- Confidence (0.0-1.0)<br/>- Reasoning<br/>- Key Factors<br/>- Legal Basis]
+    
+    style CA fill:#FF6B6B
+    style CCA fill:#4ECDC4
+    style PMA fill:#95E1D3
+    style Synthesis fill:#F38181
+    style Output fill:#AA96DA
 ```
-┌─────────────────────────────────────────────────────┐
-│          AI Analysis Request                         │
-│  (All evidence for disputed case)                   │
-└──────────────────┬──────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-    ┌───▼──┐  ┌────▼───┐  ┌──▼────┐
-    │ Cred.│  │Contract│  │Pattern│
-    │ Agent│  │ Clause │  │Matcher│
-    │      │  │ Agent  │  │ Agent │
-    └───┬──┘  └────┬───┘  └──┬────┘
-        │          │          │
-        └──────────┼──────────┘
-                   │
-            ┌──────▼──────┐
-            │   Ruling    │
-            │  Generator  │
-            │    Agent    │
-            └──────┬──────┘
-                   │
-        ┌──────────▼──────────┐
-        │ Final Ruling with   │
-        │ - Decision          │
-        │ - Confidence Score  │
-        │ - Reasoning         │
-        │ - Key Factors       │
-        └─────────────────────┘
+
+#### Multi-Agent Processing Flow
+
+```mermaid
+sequenceDiagram
+    participant Backend as Arbitra Backend
+    participant AI as AI Analysis Canister
+    participant EM as Evidence Manager
+    participant CA as Credibility Agent
+    participant CCA as Contract Agent
+    participant PMA as Pattern Agent
+    participant RGA as Ruling Generator
+    
+    Backend->>AI: analyzeDispute(disputeId)
+    AI->>EM: getDisputeEvidence(disputeId)
+    EM-->>AI: Evidence[]
+    
+    par Parallel Processing
+        AI->>CA: assessCredibility(evidence)
+        CA->>CA: Analyze Source
+        CA->>CA: Check Tampering Indicators
+        CA-->>AI: credibilityScore: 0.87
+    and
+        AI->>CCA: extractClauses(evidence)
+        CCA->>CCA: Parse Contracts
+        CCA->>CCA: Identify Obligations
+        CCA-->>AI: clauses: ContractClause[]
+    and
+        AI->>PMA: matchPatterns(evidence)
+        PMA->>PMA: Compare to Precedents
+        PMA->>PMA: Calculate Win Rates
+        PMA-->>AI: patterns: LegalPattern[]
+    end
+    
+    AI->>RGA: synthesizeRuling(CA, CCA, PMA)
+    RGA->>RGA: Calculate Scores
+    RGA->>RGA: Determine Decision
+    RGA->>RGA: Generate Reasoning
+    RGA-->>AI: PreliminaryRuling
+    
+    AI-->>Backend: AnalysisResult
 ```
 
 #### Agent Specifications
@@ -621,24 +927,90 @@ Every AI decision includes transparent reasoning:
 
 ### 4. Bitcoin Escrow Integration
 
-#### Escrow Flow
+#### Escrow Flow State Machine
 
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: createEscrow()
+    
+    Pending --> Funding: Plaintiff Deposits
+    Funding --> Funding: Defendant Deposits
+    Funding --> Funded: Both Parties Funded
+    
+    Funded --> Analysis: Dispute Resolution Begins
+    Analysis --> Arbitrating: AI + Human Review
+    Arbitrating --> Decided: Ruling Issued
+    
+    Decided --> Settling: Execute Settlement
+    Settling --> Settled: Funds Transferred
+    
+    Pending --> Cancelled: Timeout/Refund
+    Funding --> Cancelled: Partial Refund
+    Decided --> Refunded: Manual Refund
+    
+    Settled --> [*]
+    Cancelled --> [*]
+    Refunded --> [*]
+    
+    note right of Funded
+        Multi-Signature Lock:
+        - Requires 2-of-3 signatures
+        - Time-lock for large amounts
+        - Immutable on ICP
+    end note
+    
+    note right of Settling
+        Automated Distribution:
+        - Winner: Award Amount
+        - Platform: Fee (1-5%)
+        - Loser: Refund (if applicable)
+    end note
 ```
-Plaintiff deposits funds
-       ↓
-[ESCROW: PENDING] - Awaiting Defendant funding
-       ↓
-Defendant deposits funds
-       ↓
-[ESCROW: FUNDED] - Funds locked, dispute resolution begins
-       ↓
-Arbitrator renders decision
-       ↓
-[ESCROW: SETTLING] - Smart contract processes award
-       ↓
-Winner receives funds | Platform takes fee
-       ↓
-[ESCROW: SETTLED] - Complete
+
+#### Bitcoin Escrow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant P as Plaintiff
+    participant D as Defendant
+    participant FE as Frontend
+    participant BE as Bitcoin Escrow Canister
+    participant BTC as ICP Bitcoin API
+    participant Arb as Arbitrator
+    
+    P->>FE: Initiate Dispute
+    FE->>BE: createEscrow(disputeId, amount)
+    BE->>BE: Generate Escrow Account
+    BE-->>FE: escrowId
+    
+    P->>FE: Fund Escrow
+    FE->>BE: fundEscrow(escrowId, amount)
+    BE->>BTC: Transfer ckBTC (Plaint.)
+    BTC-->>BE: Transaction Hash
+    BE->>BE: Update Status: PARTIALLY_FUNDED
+    BE-->>FE: Funding Pending
+    
+    D->>FE: Fund Escrow
+    FE->>BE: fundEscrow(escrowId, amount)
+    BE->>BTC: Transfer ckBTC (Defend.)
+    BTC-->>BE: Transaction Hash
+    BE->>BE: Verify Both Funded
+    BE->>BE: Update Status: FUNDED
+    BE->>BE: Lock Funds (Multi-Sig)
+    BE-->>FE: Escrow Funded & Locked
+    
+    Arb->>FE: Submit Ruling
+    FE->>BE: executeSettlement(escrowId, ruling)
+    BE->>BE: Calculate Distribution
+    BE->>BTC: Transfer to Winner
+    BTC-->>BE: Winner TX Hash
+    BE->>BTC: Transfer Platform Fee
+    BTC-->>BE: Fee TX Hash
+    BE->>BE: Update Status: SETTLED
+    BE-->>FE: Settlement Complete
+    
+    FE-->>P: Funds Received
+    FE-->>D: Settlement Notification
 ```
 
 #### Smart Contract Implementation
@@ -988,6 +1360,88 @@ const createUserProfile = async (profile: Partial<UserProfile>) => {
 
 ## Backend Architecture
 
+### Network Topology
+
+```mermaid
+graph TB
+    subgraph "ICP Subnet"
+        subgraph "Canister Instances"
+            AB1[Arbitra Backend<br/>Canister ID: rrkah...]
+            EM1[Evidence Manager<br/>Canister ID: r7inp...]
+            AI1[AI Analysis<br/>Canister ID: rnhww...]
+            BE1[Bitcoin Escrow<br/>Canister ID: ryjl3...]
+        end
+        
+        subgraph "Data Storage"
+            SM[Stable Memory<br/>Persistent State]
+            HT[Heap Memory<br/>Temporary Data]
+        end
+        
+        subgraph "Consensus Layer"
+            BFT[ICP BFT Consensus]
+            BL[Blockchain Ledger]
+        end
+    end
+    
+    subgraph "External Networks"
+        BTC[Bitcoin Network<br/>via Chain Fusion]
+        CN[Constellation<br/>Hypergraph Network]
+    end
+    
+    AB1 --> SM
+    EM1 --> SM
+    AI1 --> SM
+    BE1 --> SM
+    
+    AB1 <--> EM1
+    AB1 <--> AI1
+    AB1 <--> BE1
+    
+    BE1 <--> BTC
+    EM1 <--> CN
+    
+    SM --> BFT
+    BFT --> BL
+    
+    style AB1 fill:#4A90E2
+    style EM1 fill:#50C878
+    style AI1 fill:#FF6B6B
+    style BE1 fill:#FFA500
+    style BFT fill:#29ABE2
+```
+
+### Canister Communication Protocol
+
+```mermaid
+sequenceDiagram
+    participant Frontend
+    participant AB as Arbitra Backend
+    participant EM as Evidence Manager
+    participant AI as AI Analysis
+    participant BE as Bitcoin Escrow
+    
+    Note over Frontend,BE: Canister-to-Canister Calls via ICP Message Passing
+    
+    Frontend->>AB: Query/Update Call (Candid)
+    AB->>AB: Process Request
+    AB->>EM: Cross-Canister Call
+    EM-->>AB: Result
+    
+    AB->>AI: Cross-Canister Call
+    AI->>EM: Query Evidence
+    EM-->>AI: Evidence Data
+    AI-->>AB: Analysis Result
+    
+    AB->>BE: Cross-Canister Call
+    BE->>BTC: HTTPS Outcall (Chain Fusion)
+    BTC-->>BE: Bitcoin State
+    BE-->>AB: Escrow Status
+    
+    AB-->>Frontend: Final Response
+    
+    Note over Frontend,BE: All calls are type-safe via Candid IDL
+```
+
 ### Canister Structure
 
 ```
@@ -1118,6 +1572,98 @@ actor ArbitraBackend {
 ---
 
 ## Frontend Architecture
+
+### Frontend Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Entry Point"
+        Main[main.tsx<br/>Application Bootstrap]
+        App[App.tsx<br/>Root Component]
+    end
+    
+    subgraph "Authentication Layer"
+        AuthCtx[AuthContext<br/>Global Auth State]
+        II[Internet Identity<br/>@dfinity/auth-client]
+        Principal[Principal Management]
+    end
+    
+    subgraph "Service Layer"
+        Agent[ICP Agent<br/>@dfinity/agent]
+        Actors[Actor Factory<br/>Canister Clients]
+        DS[DisputeService]
+        ES[EvidenceService]
+        EScS[EscrowService]
+        AIS[AI Analysis Service]
+    end
+    
+    subgraph "State Management"
+        Context[React Context API]
+        Hooks[Custom Hooks<br/>- useDispute<br/>- useEvidence<br/>- useEscrow]
+        Local[Local Component State]
+    end
+    
+    subgraph "UI Components"
+        Pages[Page Components<br/>- Dashboard<br/>- CreateDispute<br/>- DisputeDetail]
+        Components[Reusable Components<br/>- DisputeCard<br/>- EvidenceUpload<br/>- StatusBadge]
+        Modals[Modal Components<br/>- AuthModal<br/>- ConfirmationModal]
+    end
+    
+    subgraph "Styling"
+        CSS[CSS Modules]
+        Global[Global Styles]
+    end
+    
+    Main --> App
+    App --> AuthCtx
+    AuthCtx --> II
+    II --> Principal
+    
+    App --> Context
+    Context --> Hooks
+    Hooks --> Agent
+    Agent --> Actors
+    Actors --> DS
+    Actors --> ES
+    Actors --> EScS
+    Actors --> AIS
+    
+    App --> Pages
+    Pages --> Components
+    Components --> Modals
+    
+    Pages --> CSS
+    Components --> CSS
+    CSS --> Global
+    
+    style Main fill:#61DAFB
+    style Agent fill:#29ABE2
+    style Context fill:#F7931A
+    style Pages fill:#4ECDC4
+```
+
+### Frontend Service Communication Flow
+
+```mermaid
+sequenceDiagram
+    participant Component as React Component
+    participant Hook as Custom Hook
+    participant Service as Service Layer
+    participant Actor as ICP Actor
+    participant Canister as Backend Canister
+    
+    Component->>Hook: useDispute(disputeId)
+    Hook->>Service: disputeService.getDispute(id)
+    Service->>Actor: Create/Get Actor Instance
+    Actor->>Canister: Query/Update Call (Candid)
+    Canister-->>Actor: Response
+    Actor-->>Service: Typed Result
+    Service-->>Hook: Dispute Object
+    Hook->>Hook: Update State
+    Hook-->>Component: { dispute, loading, error }
+    
+    Note over Component,Canister: All communication is type-safe<br/>via TypeScript + Candid IDL
+```
 
 ### Component Hierarchy
 
@@ -2175,6 +2721,79 @@ getDisputeEvidence(disputeId: Nat) -> [EvidenceMetadata]
 ---
 
 ## Security Considerations
+
+### Security Architecture
+
+```mermaid
+graph TB
+    subgraph "Authentication Layer"
+        II[Internet Identity<br/>WebAuthn + Principal]
+        II --> Principal[Principal ID<br/>Immutable Identity]
+    end
+    
+    subgraph "Authorization Layer"
+        Principal --> RBAC[Role-Based Access Control]
+        RBAC --> Roles[Roles:<br/>- Plaintiff<br/>- Defendant<br/>- Arbitrator<br/>- Admin]
+    end
+    
+    subgraph "Data Protection"
+        Encrypt[Encryption in Transit<br/>TLS 1.3]
+        Hash[SHA-256 Hashing<br/>Evidence Integrity]
+        Anchor[Constellation Anchoring<br/>Tamper-Proof]
+    end
+    
+    subgraph "Smart Contract Security"
+        Verify[Access Verification<br/>msg.caller Checks]
+        TypeSafe[Type Safety<br/>Motoko + Candid]
+        Result[Result Types<br/>Error Handling]
+    end
+    
+    subgraph "Escrow Security"
+        MultiSig[Multi-Signature<br/>2-of-3 Approval]
+        TimeLock[Time-Locks<br/>Emergency Recovery]
+        Audit[Audit Trail<br/>Immutable Logs]
+    end
+    
+    Principal --> RBAC
+    Roles --> Verify
+    Hash --> Anchor
+    Verify --> TypeSafe
+    TypeSafe --> Result
+    MultiSig --> TimeLock
+    TimeLock --> Audit
+    
+    style II fill:#29ABE2
+    style Hash fill:#50C878
+    style MultiSig fill:#FFA500
+    style Anchor fill:#9B59B6
+```
+
+### Security Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant II as Internet Identity
+    participant Backend
+    participant Canister
+    
+    User->>II: Authenticate (WebAuthn)
+    II->>II: Verify Credential
+    II->>Frontend: Principal ID
+    Frontend->>Backend: Request (with Principal)
+    
+    Backend->>Backend: Verify msg.caller
+    Backend->>Backend: Check RBAC Role
+    alt Authorized
+        Backend->>Canister: Cross-Canister Call
+        Canister->>Canister: Process Request
+        Canister-->>Backend: Result
+        Backend-->>Frontend: Success Response
+    else Unauthorized
+        Backend-->>Frontend: Error: Access Denied
+    end
+```
 
 ### Authentication & Authorization
 

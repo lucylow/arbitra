@@ -50,4 +50,30 @@ declare global {
   }
 }
 
+// Module declarations for dynamically imported IDL files from dfx build output
+// These files are generated at runtime and may not exist at compile time
+declare module '../../../.dfx/local/canisters/arbitra_backend/service.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../../../.dfx/local/canisters/evidence_manager/service.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../../../.dfx/local/canisters/ai_analysis/service.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../../../.dfx/local/canisters/bitcoin_escrow/service.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
 export {};

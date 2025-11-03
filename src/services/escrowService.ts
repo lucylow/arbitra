@@ -15,7 +15,8 @@ export class EscrowService {
   async healthCheck(): Promise<string> {
     try {
       const actor = await getActor();
-      return await actor.health();
+      const result = await actor.health();
+      return String(result);
     } catch (error) {
       console.error('Failed to check escrow health:', error);
       throw error;

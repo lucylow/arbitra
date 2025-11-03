@@ -14,7 +14,8 @@ export class EvidenceService {
   async healthCheck(): Promise<string> {
     try {
       const actor = await getActor();
-      return await actor.health();
+      const result = await actor.health();
+      return String(result);
     } catch (error) {
       console.error('Failed to check evidence manager health:', error);
       throw error;
