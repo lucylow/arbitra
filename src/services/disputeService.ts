@@ -140,8 +140,21 @@ export class DisputeService {
     const stored = localStorage.getItem('mockDisputes');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        mockDisputes = parsed.map((d: any) => ({
+        const parsed = JSON.parse(stored) as Array<{
+          id: string;
+          claimant: string;
+          respondent: string;
+          arbitrator?: string;
+          title: string;
+          description: string;
+          amount: string;
+          status: DisputeStatus;
+          createdAt: string;
+          updatedAt: string;
+          decision?: string;
+          escrowId?: string;
+        }>;
+        mockDisputes = parsed.map((d) => ({
           ...d,
           claimant: Principal.fromText(d.claimant),
           respondent: Principal.fromText(d.respondent),
