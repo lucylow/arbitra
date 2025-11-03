@@ -1,51 +1,67 @@
+import Array "mo:base/Array";
+import Blob "mo:base/Blob";
 import Buffer "mo:base/Buffer";
 import HashMap "mo:base/HashMap";
+import Int "mo:base/Int";
+import Iter "mo:base/Iter";
+import Nat "mo:base/Nat";
+import Option "mo:base/Option";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
-import Nat "mo:base/Nat";
-import Int "mo:base/Int";
 import Hash "mo:base/Hash";
 import Types "types";
 
 actor ArbitraBackend {
 
-  // Use proper types
-  public type Dispute = Types.Dispute;
+  // ===== TYPES =====
   public type DisputeStatus = Types.DisputeStatus;
-  public type Evidence = Types.EvidenceReference;
+  public type Dispute = Types.Dispute;
+  public type EvidenceReference = Types.EvidenceReference;
   public type Ruling = Types.Ruling;
   public type UserProfile = Types.UserProfile;
   public type UserType = Types.UserType;
 
-  // State management - use stable memory
+  // Extended types for specification
+  public type EvidenceSubmission = {
+    disputeId: Text;
+    fileName: Text;
+    fileType: Text;
+    fileSize: Nat;
+    fileHash: Blob;
+    description: Text;
+    isConfidential: Bool;
+  };
+
+  // ===== STORAGE =====
   private stable var disputeArray: [Dispute] = [];
   private stable var nextDisputeId: Nat = 1;
-  // Use a stable hashing function for Nat
-  private func natHash(n: Nat) : Hash.Hash { 
+  private func natHash(n: Nat): Hash.Hash { 
     Text.hash(Nat.toText(n))
   };
-  private let disputeMap = HashMap.HashMap<Nat, Dispute>(10, Nat.equal, natHash);
+  private let disputes = HashMap.HashMap<Nat, Dispute>(10, Nat.equal, natHash);
 
-  // User profiles
   private stable var userArray: [(Principal, UserProfile)] = [];
-  private let userMap = HashMap.HashMap<Principal, UserProfile>(10, Principal.equal, Principal.hash);
+  private let userProfiles = HashMap.HashMap<Principal, UserProfile>(10, Principal.equal, Principal.hash);
 
-  // Admin management
   private stable var adminArray: [Principal] = [];
   private let adminSet = HashMap.HashMap<Principal, Bool>(10, Principal.equal, Principal.hash);
 
-  // Pre-upgrade hook - save state
+  // ===== CONSTANTS =====
+  let EVIDENCE_PERIOD_DAYS: Int = 14 * 24 * 60 * 60 * 1_000_000_000; // 14 days in nanoseconds
+  let MIN_DISPUTE_AMOUNT: Nat = 10_000; // $10.00 in cents
+
+  // ===== UPGRADE HOOKS =====
   system func preupgrade() {
-    let disputeBuffer = Buffer.Buffer<Dispute>(disputeMap.size());
-    for ((_, dispute) in disputeMap.entries()) {
+    let disputeBuffer = Buffer.Buffer<Dispute>(disputes.size());
+    for ((_, dispute) in disputes.entries()) {
       disputeBuffer.add(dispute);
     };
     disputeArray := Buffer.toArray(disputeBuffer);
     
-    let userBuffer = Buffer.Buffer<(Principal, UserProfile)>(userMap.size());
-    for ((principal, profile) in userMap.entries()) {
+    let userBuffer = Buffer.Buffer<(Principal, UserProfile)>(userProfiles.size());
+    for ((principal, profile) in userProfiles.entries()) {
       userBuffer.add((principal, profile));
     };
     userArray := Buffer.toArray(userBuffer);
@@ -57,31 +73,28 @@ actor ArbitraBackend {
     adminArray := Buffer.toArray(adminBuffer);
   };
 
-  // Post-upgrade hook - restore state
   system func postupgrade() {
     for (dispute in disputeArray.vals()) {
-      disputeMap.put(dispute.id, dispute);
+      disputes.put(dispute.id, dispute);
     };
     for ((principal, profile) in userArray.vals()) {
-      userMap.put(principal, profile);
+      userProfiles.put(principal, profile);
     };
     for (principal in adminArray.vals()) {
       adminSet.put(principal, true);
     };
   };
 
-  // Initialize admin on first deploy
+  // Initialize admin
   private var initialized = false;
   system func heartbeat(): async () {
     if (not initialized) {
-      // Set the canister controller as admin on first run
       let controller = Principal.fromActor(ArbitraBackend);
       adminSet.put(controller, true);
       initialized := true;
     };
   };
 
-  // Admin helper functions
   private func isAdmin(principal: Principal): Bool {
     switch (adminSet.get(principal)) {
       case (?_) { true };
@@ -89,86 +102,8 @@ actor ArbitraBackend {
     };
   };
 
-  // Admin management functions
-  public shared(msg) func addAdmin(principal: Principal): async Result.Result<(), Text> {
-    if (not isAdmin(msg.caller)) {
-      return #err("Only admins can add other admins");
-    };
-    adminSet.put(principal, true);
-    #ok();
-  };
-
-  public query func isAdminPrincipal(principal: Principal): async Bool {
-    isAdmin(principal);
-  };
-
-  public shared(msg) func removeAdmin(principal: Principal): async Result.Result<(), Text> {
-    if (not isAdmin(msg.caller)) {
-      return #err("Only admins can remove other admins");
-    };
-    adminSet.delete(principal);
-    #ok();
-  };
-
-  // ====== DISPUTE MANAGEMENT ======
-
-  // Comprehensive createDispute method
-  private func createDisputeComprehensive(
-    title: Text,
-    description: Text,
-    defendant: Principal,
-    amountInDispute: Nat,
-    currency: Text,
-    governingLaw: Text,
-    arbitrationClause: Text,
-    plaintiff: Principal
-  ) : Result.Result<Nat, Text> {
-
-    // Input validation
-    if (Text.size(title) < 5) {
-      return #err("Title must be at least 5 characters");
-    };
-    if (Text.size(description) < 10) {
-      return #err("Description must be at least 10 characters");
-    };
-    if (amountInDispute < 100000) { // $1.00 minimum in cents
-      return #err("Minimum dispute amount is $1.00");
-    };
-    if (plaintiff == defendant) {
-      return #err("Plaintiff and defendant must be different");
-    };
-
-    let disputeId = nextDisputeId;
-    nextDisputeId += 1;
-
-    let newDispute: Dispute = {
-      id = disputeId;
-      title = title;
-      description = description;
-      plaintiff = plaintiff;
-      defendant = defendant;
-      amountInDispute = amountInDispute;
-      currency = currency;
-      governingLaw = governingLaw;
-      arbitrationClause = arbitrationClause;
-      status = #Draft;
-      evidence = [];
-      ruling = null;
-      createdAt = Time.now();
-      updatedAt = Time.now();
-    };
-
-    disputeMap.put(disputeId, newDispute);
-
-    // Ensure profiles exist
-    let _ = ensureUserProfile(plaintiff);
-    let _ = ensureUserProfile(defendant);
-
-    #ok(disputeId);
-  };
-
-  // Public comprehensive createDispute method (with all fields)
-  public shared(msg) func createDisputeFull(
+  // ===== DISPUTE MANAGEMENT =====
+  public shared ({ caller }) func createDispute(
     title: Text,
     description: Text,
     defendant: Principal,
@@ -176,209 +111,327 @@ actor ArbitraBackend {
     currency: Text,
     governingLaw: Text,
     arbitrationClause: Text
-  ) : async Result.Result<Nat, Text> {
-    createDisputeComprehensive(title, description, defendant, amountInDispute, currency, governingLaw, arbitrationClause, msg.caller);
-  };
+  ) : async Result.Result<Text, Text> {
 
-  private func ensureUserProfile(principal: Principal) : () {
-    switch (userMap.get(principal)) {
-      case (?_) { }; // Already exists
-      case null {
-        let profile: UserProfile = {
-          principal = principal;
-          username = "";
-          email = "";
-          userType = #INDIVIDUAL;
-          rating = 5.0;
-          disputesInvolved = 0;
-          createdAt = Time.now();
-        };
-        userMap.put(principal, profile);
-      };
+    // Validate inputs
+    if (Text.size(title) < 5) {
+      return #err("Title must be at least 5 characters");
     };
-  };
-
-  // Internal getDispute (uses Nat ID and returns Dispute type)
-  public query func getDisputeInternal(disputeId: Nat) : async Result.Result<Dispute, Text> {
-    switch (disputeMap.get(disputeId)) {
-      case null { #err("Dispute not found") };
-      case (?dispute) { #ok(dispute) };
+    if (amountInDispute < MIN_DISPUTE_AMOUNT) {
+      return #err("Minimum dispute amount is $10.00");
     };
-  };
+    if (caller == defendant) {
+      return #err("Plaintiff and defendant must be different");
+    };
 
-  public query func getUserDisputes(user: Principal) : async [Dispute] {
-    let buffer = Buffer.Buffer<Dispute>(10);
+    let disputeId = nextDisputeId;
+    nextDisputeId += 1;
+
+    let now = Time.now();
+
+    let dispute: Dispute = {
+      id = disputeId;
+      title = title;
+      description = description;
+      plaintiff = caller;
+      defendant = defendant;
+      amountInDispute = amountInDispute;
+      currency = currency;
+      governingLaw = governingLaw;
+      arbitrationClause = arbitrationClause;
+      createdAt = now;
+      updatedAt = now;
+      status = #Draft;
+      evidence = [];
+      ruling = null;
+    };
+
+    disputes.put(disputeId, dispute);
     
-    for (dispute in disputeMap.vals()) {
-      if (dispute.plaintiff == user or dispute.defendant == user) {
-        buffer.add(dispute);
-      };
-    };
-    
-    Buffer.toArray(buffer);
+    // Update user profiles
+    _updateUserDisputes(caller, disputeId);
+    _updateUserDisputes(defendant, disputeId);
+
+    #ok(Nat.toText(disputeId))
   };
 
-  // Internal getAllDisputes (returns Dispute type)
-  public query func getAllDisputesInternal() : async [Dispute] {
-    let buffer = Buffer.Buffer<Dispute>(10);
-    for (dispute in disputeMap.vals()) {
-      buffer.add(dispute);
-    };
-    Buffer.toArray(buffer);
-  };
-
-  public shared(msg) func activateDispute(disputeId: Nat) : async Result.Result<(), Text> {
-    switch (disputeMap.get(disputeId)) {
-      case null { #err("Dispute not found") };
-      case (?dispute) {
-        if (dispute.plaintiff != msg.caller) {
-          return #err("Only plaintiff can activate dispute");
-        };
-        if (dispute.status != #Draft) {
-          return #err("Dispute is not in draft state");
-        };
-
-        let updated: Dispute = {
-          dispute with
-          status = #Active;
-          updatedAt = Time.now();
-        };
-
-        disputeMap.put(disputeId, updated);
-        #ok();
-      };
-    };
-  };
-
-  // ====== SIMPLIFIED API (for frontend compatibility) ======
-  
-  // Simplified createDispute matching frontend expectations
-  public shared(msg) func createDispute(
+  // Simplified version for frontend compatibility
+  public shared ({ caller }) func createDispute(
     respondent: Principal,
     title: Text,
     description: Text,
     amount: Nat
   ) : async Result.Result<Text, Text> {
-    // Use default values for required fields
-    let result = createDisputeComprehensive(
+    createDispute(
       title,
       description,
       respondent,
       amount,
-      "USD", // default currency
-      "", // default governing law
-      "", // default arbitration clause
-      msg.caller
+      "USD",
+      "Uniform Commercial Code",
+      "Parties agree to binding arbitration through Arbitra platform"
     );
-    
-    switch (result) {
-      case (#ok(id)) { #ok(Nat.toText(id)) };
-      case (#err(msg)) { #err(msg) };
+  };
+
+  public shared ({ caller }) func activateDispute(disputeIdText: Text) : async Result.Result<(), Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+          case null { #err("Dispute not found") };
+          case (?dispute) {
+            if (dispute.plaintiff != caller) {
+              return #err("Only plaintiff can activate dispute");
+            };
+            if (dispute.status != #Draft) {
+              return #err("Dispute is not in draft state");
+            };
+
+            let updatedDispute: Dispute = {
+              dispute with
+              status = #Active;
+              updatedAt = Time.now();
+            };
+
+            disputes.put(disputeId, updatedDispute);
+            #ok(())
+          };
+        };
+      };
     };
   };
 
-  // Helper to convert Dispute to frontend format
-  private func disputeToFrontendFormat(dispute: Dispute) : {
-    id: Text;
-    claimant: Principal;
-    respondent: Principal;
-    arbitrator: ?Principal;
-    title: Text;
-    description: Text;
-    amount: Nat;
-    status: {
-      #Pending;
-      #EvidenceSubmission;
-      #UnderReview;
-      #Decided;
-      #Appealed;
-      #Closed;
-    };
-    createdAt: Int;
-    updatedAt: Int;
-    decision: ?Text;
-    escrowId: ?Text;
-  } {
-    {
-      id = Nat.toText(dispute.id);
-      claimant = dispute.plaintiff;
-      respondent = dispute.defendant;
-      arbitrator = null;
-      title = dispute.title;
-      description = dispute.description;
-      amount = dispute.amountInDispute;
-      status = switch (dispute.status) {
-        case (#Draft) { #Pending };
-        case (#Active) { #Pending };
-        case (#EvidenceSubmission) { #EvidenceSubmission };
-        case (#AIAnalysis) { #UnderReview };
-        case (#ArbitratorReview) { #UnderReview };
-        case (#Settled) { #Decided };
-        case (#Appealed) { #Appealed };
-        case (#Closed) { #Closed };
+  // ===== EVIDENCE MANAGEMENT =====
+  public shared ({ caller }) func submitEvidence(
+    disputeIdText: Text,
+    fileName: Text,
+    fileType: Text,
+    fileSize: Nat,
+    fileHash: Blob,
+    description: Text,
+    isConfidential: Bool
+  ) : async Result.Result<Text, Text> {
+    
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+          case null { #err("Dispute not found") };
+          case (?dispute) {
+            // Verify caller is involved in dispute
+            if (caller != dispute.plaintiff and caller != dispute.defendant) {
+              return #err("Unauthorized - not a party to this dispute");
+            };
+
+            // Verify dispute is in evidence period
+            if (dispute.status != #Active and dispute.status != #EvidenceSubmission) {
+              return #err("Dispute is not in evidence submission period");
+            };
+
+            // Convert blob hash to hex string for Constellation
+            let hashHex = _blobToHex(fileHash);
+
+            // Create evidence reference
+            let evidenceRef: EvidenceReference = {
+              id = disputeId; // Use dispute ID for now, will be replaced by Evidence Manager
+              fileName = fileName;
+              hash = hashHex;
+              uploadedAt = Time.now();
+              uploadedBy = caller;
+            };
+
+            // Update dispute with new evidence
+            let updatedEvidence = Array.append(dispute.evidence, [evidenceRef]);
+            let updatedDispute: Dispute = {
+              dispute with
+              evidence = updatedEvidence;
+              status = #EvidenceSubmission;
+              updatedAt = Time.now();
+            };
+
+            disputes.put(disputeId, updatedDispute);
+
+            // Submit hash to Constellation (mock for now - would call Evidence Manager)
+            await _submitToConstellation(hashHex, fileName);
+
+            #ok(hashHex) // Return hash as evidence ID
+          };
+        };
       };
-      createdAt = dispute.createdAt;
-      updatedAt = dispute.updatedAt;
-      decision = switch (dispute.ruling) {
-        case null { null };
-        case (?r) { ?r.decision };
-      };
-      escrowId = null;
     };
   };
 
-  // Frontend-compatible getAllDisputes
-  public query func getAllDisputes() : async [{
-    id: Text;
-    claimant: Principal;
-    respondent: Principal;
-    arbitrator: ?Principal;
-    title: Text;
-    description: Text;
-    amount: Nat;
-    status: {
-      #Pending;
-      #EvidenceSubmission;
-      #UnderReview;
-      #Decided;
-      #Appealed;
-      #Closed;
-    };
-    createdAt: Int;
-    updatedAt: Int;
-    decision: ?Text;
-    escrowId: ?Text;
-  }] {
-    let buffer = Buffer.Buffer<{
-      id: Text;
-      claimant: Principal;
-      respondent: Principal;
-      arbitrator: ?Principal;
-      title: Text;
-      description: Text;
-      amount: Nat;
-      status: {
-        #Pending;
-        #EvidenceSubmission;
-        #UnderReview;
-        #Decided;
-        #Appealed;
-        #Closed;
+  public shared ({ caller }) func getEvidence(disputeIdText: Text) : async Result.Result<[EvidenceReference], Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+          case null { #err("Dispute not found") };
+          case (?dispute) {
+            if (caller != dispute.plaintiff and caller != dispute.defendant) {
+              return #err("Unauthorized - not a party to this dispute");
+            };
+
+            #ok(dispute.evidence)
+          };
+        };
       };
-      createdAt: Int;
-      updatedAt: Int;
-      decision: ?Text;
-      escrowId: ?Text;
-    }>(10);
-    
-    for (dispute in disputeMap.vals()) {
-      buffer.add(disputeToFrontendFormat(dispute));
     };
-    
+  };
+
+  // ===== AI ANALYSIS INTEGRATION =====
+  public shared ({ caller }) func triggerAIAnalysis(disputeIdText: Text) : async Result.Result<Text, Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+          case null { #err("Dispute not found") };
+          case (?dispute) {
+            if (caller != dispute.plaintiff and caller != dispute.defendant) {
+              return #err("Unauthorized - not a party to this dispute");
+            };
+
+            // Verify we have evidence
+            if (dispute.evidence.size() == 0) {
+              return #err("No evidence submitted for analysis");
+            };
+
+            // Update status
+            let updatedDispute: Dispute = {
+              dispute with
+              status = #AIAnalysis;
+              updatedAt = Time.now();
+            };
+            disputes.put(disputeId, updatedDispute);
+
+            // Call AI Analysis canister
+            let aiAnalysis: actor {
+              analyzeDispute: (Nat, Text, Text, Nat) -> async Result.Result<Nat, Text>;
+            } = actor("rrkah-fqaaa-aaaaa-aaaaq-cai"); // AI Analysis canister ID (will be set dynamically)
+
+            let analysisResult = await aiAnalysis.analyzeDispute(
+              disputeId,
+              dispute.description,
+              "",
+              dispute.amountInDispute
+            );
+
+            switch (analysisResult) {
+              case (#ok(_)) {
+                // Analysis started - status already updated
+                #ok("Analysis initiated successfully")
+              };
+              case (#err(msg)) {
+                // Reset status on error
+                let resetDispute: Dispute = {
+                  dispute with
+                  status = #EvidenceSubmission;
+                  updatedAt = Time.now();
+                };
+                disputes.put(disputeId, resetDispute);
+                #err("Analysis failed: " # msg)
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  // ===== SETTLEMENT EXECUTION =====
+  public shared ({ caller }) func executeSettlement(disputeIdText: Text) : async Result.Result<Text, Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+          case null { #err("Dispute not found") };
+          case (?dispute) {
+            switch (dispute.ruling) {
+              case null { #err("No ruling available for this dispute") };
+              case (?ruling) {
+                if (dispute.status != #Settled and dispute.status != #ArbitratorReview) {
+                  return #err("Dispute is not ready for settlement");
+                };
+
+                // Call Bitcoin Escrow canister to execute settlement
+                let escrow: actor {
+                  executeSettlement: (Nat, Ruling) -> async Result.Result<Text, Text>;
+                } = actor("ryjl3-tyaaa-aaaaa-aaaba-cai"); // Escrow canister ID (will be set dynamically)
+
+                let settlementResult = await escrow.executeSettlement(disputeId, ruling);
+
+                switch (settlementResult) {
+                  case (#ok(txHash)) {
+                    // Update dispute status
+                    let settledDispute: Dispute = {
+                      dispute with
+                      status = #Settled;
+                      updatedAt = Time.now();
+                    };
+                    disputes.put(disputeId, settledDispute);
+                    #ok(txHash)
+                  };
+                  case (#err(msg)) {
+                    #err("Settlement execution failed: " # msg)
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  // ===== QUERY METHODS =====
+  public query func getDispute(disputeIdText: Text) : async Result.Result<Dispute, Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+      case null { #err("Dispute not found") };
+      case (?dispute) { #ok(dispute) };
+        };
+      };
+    };
+  };
+
+  public query func getUserDisputes(user: Principal) : async [Dispute] {
+    let userDisputes = Buffer.Buffer<Dispute>(0);
+    for (dispute in disputes.vals()) {
+      if (dispute.plaintiff == user or dispute.defendant == user) {
+        userDisputes.add(dispute);
+      };
+    };
+    userDisputes.toArray()
+  };
+
+  public query func getAllDisputes() : async [Dispute] {
+    let buffer = Buffer.Buffer<Dispute>(10);
+    for (dispute in disputes.vals()) {
+      buffer.add(dispute);
+    };
     Buffer.toArray(buffer);
   };
 
-  // Frontend-compatible getDispute (takes Text ID)
+  public query func getRuling(disputeIdText: Text) : async Result.Result<Ruling, Text> {
+    switch (Nat.fromText(disputeIdText)) {
+      case null { #err("Invalid dispute ID") };
+      case (?disputeId) {
+        switch (disputes.get(disputeId)) {
+      case null { #err("Dispute not found") };
+      case (?dispute) {
+            switch (dispute.ruling) {
+              case null { #err("No ruling found for this dispute") };
+              case (?ruling) { #ok(ruling) };
+        };
+        };
+        };
+      };
+    };
+  };
+
+  // Frontend-compatible getDispute (returns frontend format)
   public query func getDispute(disputeId: Text) : async ?{
     id: Text;
     claimant: Principal;
@@ -403,15 +456,41 @@ actor ArbitraBackend {
     switch (Nat.fromText(disputeId)) {
       case null { null };
       case (?id) {
-        switch (disputeMap.get(id)) {
+        switch (disputes.get(id)) {
           case null { null };
-          case (?dispute) { ?disputeToFrontendFormat(dispute) };
+          case (?dispute) {
+            ?{
+      id = Nat.toText(dispute.id);
+      claimant = dispute.plaintiff;
+      respondent = dispute.defendant;
+      arbitrator = null;
+      title = dispute.title;
+      description = dispute.description;
+      amount = dispute.amountInDispute;
+      status = switch (dispute.status) {
+        case (#Draft) { #Pending };
+        case (#Active) { #Pending };
+        case (#EvidenceSubmission) { #EvidenceSubmission };
+        case (#AIAnalysis) { #UnderReview };
+        case (#ArbitratorReview) { #UnderReview };
+        case (#Settled) { #Decided };
+        case (#Appealed) { #Appealed };
+        case (#Closed) { #Closed };
+      };
+      createdAt = dispute.createdAt;
+      updatedAt = dispute.updatedAt;
+      decision = switch (dispute.ruling) {
+        case null { null };
+        case (?r) { ?r.decision };
+      };
+      escrowId = null;
+            }
+          };
         };
       };
     };
   };
 
-  // Frontend-compatible getDisputesByUser
   public query func getDisputesByUser(user: Principal) : async [{
     id: Text;
     claimant: Principal;
@@ -455,38 +534,62 @@ actor ArbitraBackend {
       escrowId: ?Text;
     }>(10);
     
-    for (dispute in disputeMap.vals()) {
+    for (dispute in disputes.vals()) {
       if (dispute.plaintiff == user or dispute.defendant == user) {
-        buffer.add(disputeToFrontendFormat(dispute));
+        buffer.add({
+          id = Nat.toText(dispute.id);
+          claimant = dispute.plaintiff;
+          respondent = dispute.defendant;
+          arbitrator = null;
+          title = dispute.title;
+          description = dispute.description;
+          amount = dispute.amountInDispute;
+          status = switch (dispute.status) {
+            case (#Draft) { #Pending };
+            case (#Active) { #Pending };
+            case (#EvidenceSubmission) { #EvidenceSubmission };
+            case (#AIAnalysis) { #UnderReview };
+            case (#ArbitratorReview) { #UnderReview };
+            case (#Settled) { #Decided };
+            case (#Appealed) { #Appealed };
+            case (#Closed) { #Closed };
+          };
+          createdAt = dispute.createdAt;
+          updatedAt = dispute.updatedAt;
+          decision = switch (dispute.ruling) {
+            case null { null };
+            case (?r) { ?r.decision };
+          };
+          escrowId = null;
+        });
       };
     };
     
     Buffer.toArray(buffer);
   };
 
-  // Stub implementations for frontend compatibility
-  public shared(msg) func assignArbitrator(disputeId: Text, arbitrator: Principal) : async Result.Result<Text, Text> {
-    // Check admin authorization
-    if (not isAdmin(msg.caller)) {
+  // Additional admin functions
+  public shared ({ caller }) func assignArbitrator(disputeIdText: Text, arbitrator: Principal) : async Result.Result<(), Text> {
+    if (not isAdmin(caller)) {
       return #err("Only admins can assign arbitrators");
     };
     
-    switch (Nat.fromText(disputeId)) {
+    switch (Nat.fromText(disputeIdText)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
-        switch (disputeMap.get(id)) {
+        switch (disputes.get(id)) {
           case null { #err("Dispute not found") };
           case (?dispute) {
-            // Update dispute with arbitrator (simplified for now)
-            #ok("Arbitrator assigned");
+            // Update dispute (arbitrator field would be added to Dispute type if needed)
+            #ok(())
           };
         };
       };
     };
   };
 
-  public shared(msg) func updateDisputeStatus(
-    disputeId: Text,
+  public shared ({ caller }) func updateDisputeStatus(
+    disputeIdText: Text,
     status: {
       #Pending;
       #EvidenceSubmission;
@@ -495,18 +598,17 @@ actor ArbitraBackend {
       #Appealed;
       #Closed;
     }
-  ) : async Result.Result<Text, Text> {
-    // Check admin authorization
-    if (not isAdmin(msg.caller)) {
+  ) : async Result.Result<(), Text> {
+    if (not isAdmin(caller)) {
       return #err("Only admins can update dispute status");
     };
-    switch (Nat.fromText(disputeId)) {
+    
+    switch (Nat.fromText(disputeIdText)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
-        switch (disputeMap.get(id)) {
+        switch (disputes.get(id)) {
           case null { #err("Dispute not found") };
           case (?dispute) {
-            // Map frontend status to backend status
             let backendStatus: DisputeStatus = switch (status) {
               case (#Pending) { #Active };
               case (#EvidenceSubmission) { #EvidenceSubmission };
@@ -522,30 +624,29 @@ actor ArbitraBackend {
               updatedAt = Time.now();
             };
             
-            disputeMap.put(id, updated);
-            #ok("Status updated");
+            disputes.put(id, updated);
+            #ok(())
           };
         };
       };
     };
   };
 
-  public shared(msg) func submitDecision(disputeId: Text, decision: Text) : async Result.Result<Text, Text> {
-    switch (Nat.fromText(disputeId)) {
+  public shared ({ caller }) func submitDecision(disputeIdText: Text, decision: Text) : async Result.Result<(), Text> {
+    switch (Nat.fromText(disputeIdText)) {
       case null { #err("Invalid dispute ID") };
       case (?id) {
-        switch (disputeMap.get(id)) {
+        switch (disputes.get(id)) {
           case null { #err("Dispute not found") };
           case (?dispute) {
-            // TODO: Implement decision submission logic
             let ruling: Ruling = {
-              id = 1;
+              id = id;
               disputeId = id;
               decision = decision;
               reasoning = "";
               keyFactors = [];
               confidenceScore = 0.0;
-              issuedBy = msg.caller;
+              issuedBy = caller;
               issuedAt = Time.now();
             };
             
@@ -556,27 +657,27 @@ actor ArbitraBackend {
               updatedAt = Time.now();
             };
             
-            disputeMap.put(id, updated);
-            #ok("Decision submitted");
+            disputes.put(id, updated);
+            #ok(())
           };
         };
       };
     };
   };
 
-  public shared(msg) func registerUser(name: Text, email: Text, role: {
+  public shared ({ caller }) func registerUser(name: Text, email: Text, role: {
     #Claimant;
     #Respondent;
     #Arbitrator;
     #Admin;
-  }) : async Result.Result<Text, Text> {
+  }) : async Result.Result<(), Text> {
     let userType: UserType = switch (role) {
       case (#Arbitrator) { #ARBITRATOR };
       case (_) { #INDIVIDUAL };
     };
     
     let profile: UserProfile = {
-      principal = msg.caller;
+      principal = caller;
       username = name;
       email = email;
       userType = userType;
@@ -585,19 +686,71 @@ actor ArbitraBackend {
       createdAt = Time.now();
     };
     
-    userMap.put(msg.caller, profile);
-    #ok("User registered");
+    userProfiles.put(caller, profile);
+    #ok(())
   };
 
-  public shared(_msg) func linkEscrow(_disputeId: Text, _escrowId: Text) : async Result.Result<Text, Text> {
+  public shared (_msg) func linkEscrow(_disputeIdText: Text, _escrowIdText: Text) : async Result.Result<(), Text> {
     // TODO: Implement escrow linking logic
-    #ok("Escrow linked");
+    #ok(())
   };
 
-  // ====== HEALTH CHECK ======
-  
+  // Admin management
+  public shared ({ caller }) func addAdmin(principal: Principal): async Result.Result<(), Text> {
+    if (not isAdmin(caller)) {
+      return #err("Only admins can add other admins");
+    };
+    adminSet.put(principal, true);
+    #ok(())
+  };
+
+  public query func isAdminPrincipal(principal: Principal): async Bool {
+    isAdmin(principal)
+  };
+
+  // ===== PRIVATE HELPER FUNCTIONS =====
+  private func _updateUserDisputes(user: Principal, disputeId: Nat) {
+    switch (userProfiles.get(user)) {
+      case null {
+        let profile: UserProfile = {
+          principal = user;
+          username = "";
+          email = "";
+          userType = #INDIVIDUAL;
+          rating = 5.0;
+          disputesInvolved = 1;
+          createdAt = Time.now();
+        };
+        userProfiles.put(user, profile);
+      };
+      case (?profile) {
+        let updatedProfile: UserProfile = {
+          profile with
+          disputesInvolved = profile.disputesInvolved + 1;
+        };
+        userProfiles.put(user, updatedProfile);
+      };
+    };
+  };
+
+  private func _blobToHex(blob: Blob) : Text {
+    let bytes = Blob.toArray(blob);
+    var hex = "";
+    for (byte in bytes.vals()) {
+      let hexByte = Nat8.toText(byte);
+      hex := hex # (if (hexByte.size() == 1) "0" else "") # hexByte;
+    };
+    hex
+  };
+
+  private func _submitToConstellation(hash: Text, fileName: Text) : async Text {
+    // Mock Constellation submission
+    // In production, this would call Evidence Manager which calls Constellation's API
+    "CONSTELLATION_TX_" # hash
+  };
+
+  // Health check
   public query func health() : async Text {
-    "Arbitra backend is operational";
+    "Arbitra backend is operational"
   };
-};
-
+}

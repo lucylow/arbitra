@@ -1,0 +1,13 @@
+// hooks/useInterval.ts
+import { useEffect, useRef } from 'react';
+
+export const useInterval = (callback: () => void, delay: number | null) => {
+  const savedRef = useRef(callback);
+  useEffect(() => { savedRef.current = callback; }, [callback]);
+
+  useEffect(() => {
+    if (delay === null) return;
+    const id = setInterval(() => savedRef.current(), delay);
+    return () => clearInterval(id);
+  }, [delay]);
+};
