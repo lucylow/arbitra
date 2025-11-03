@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Layout } from './components/ui/Layout'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { CreateDispute } from './components/disputes/CreateDispute'
@@ -55,7 +55,7 @@ function App() {
   return (
     <Layout 
       currentPage={currentPage} 
-      onNavigate={setCurrentPage}
+      onNavigate={(page) => setCurrentPage(page as AppPage)}
     >
       {renderContent()}
     </Layout>

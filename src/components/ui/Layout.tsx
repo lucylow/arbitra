@@ -5,7 +5,7 @@ import { Scale, Home, FileText } from 'lucide-react'
 interface LayoutProps {
   children: React.ReactNode
   currentPage?: string
-  onNavigate?: (page: string) => void
+  onNavigate?: (page: string | 'dashboard' | 'create' | 'dispute-detail') => void
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 

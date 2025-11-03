@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useArbitra, Dispute, Evidence } from '../../hooks/useArbitra'
+import { useArbitra, Dispute } from '../../hooks/useArbitra'
 import { EvidenceUpload } from '../evidence/EvidenceUpload'
 import { useInternetIdentity } from '../../hooks/useInternetIdentity'
 import { 
@@ -25,7 +25,6 @@ export const DisputeDetail: React.FC<DisputeDetailProps> = ({
   const { getDispute, triggerAIAnalysis, isLoading } = useArbitra(identity)
   
   const [dispute, setDispute] = useState<Dispute | null>(null)
-  const [evidence, setEvidence] = useState<Evidence[]>([])
   const [showEvidenceUpload, setShowEvidenceUpload] = useState(false)
 
   useEffect(() => {

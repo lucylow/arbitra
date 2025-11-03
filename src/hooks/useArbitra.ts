@@ -1,41 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Actor, ActorSubclass, HttpAgent } from '@dfinity/agent'
+import { ActorSubclass } from '@dfinity/agent'
 import { Principal } from '@dfinity/principal'
-import { createActor as createActorHelper } from '../services/agent'
-import { CANISTER_IDS } from '../services/agent'
-
-// Import IDL from declarations (will try multiple paths)
-async function getArbitraBackendIdl() {
-  const paths = [
-    '../../../.dfx/local/canisters/arbitra_backend/service.did.js',
-    '/declarations/arbitra_backend/service.did.js',
-    './declarations/arbitra_backend/service.did.js',
-    '../declarations/arbitra_backend.did.js',
-  ];
-
-  let lastError: any;
-  for (const modulePath of paths) {
-    try {
-      const idlModule = await import(modulePath as any);
-      if (idlModule?.idlFactory) {
-        return idlModule;
-      }
-    } catch (e) {
-      lastError = e;
-      continue;
-    }
-  }
-
-  // Fallback to using actors.ts method
-  try {
-    const { createArbitraBackendActor } = await import('../services/actors');
-    // This will handle IDL loading internally
-    return null; // Signal to use actor directly
-  } catch (e) {
-    console.error('Failed to load arbitra_backend IDL:', lastError);
-    throw new Error('Arbitra backend IDL not found');
-  }
-}
 
 export interface Dispute {
   id: string
@@ -206,13 +171,9 @@ export const useArbitra = (identity: Principal | null) => {
     setError(null)
 
     try {
-      // Calculate file hash
+      // Calculate file hash and convert to blob for backend
       const arrayBuffer = await file.arrayBuffer()
       const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
-      const hashArray = Array.from(new Uint8Array(hashBuffer))
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-      
-      // Convert to blob for backend
       const hashBlob = new Blob([hashBuffer])
 
       const result = await (actor as any).submitEvidence(
