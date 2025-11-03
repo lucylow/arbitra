@@ -4488,3 +4488,14 @@ Block cache LRUCache@0x7fe2b27233a0#37035 capacity: 32.00 MB seed: 1158409491 us
 Block cache entry stats(count,size,portion): DataBlock(2,4.66 KB,0.0142306%) Misc(1,0.00 KB,0%)
 
 ** File Read Latency Histogram By Level [CUS] **
+2025/11/02-20:51:21.452771 123145632415744 [db/db_impl/db_impl.cc:1140] ------- DUMPING STATS -------
+2025/11/02-20:51:21.453145 123145632415744 [db/db_impl/db_impl.cc:1141] 
+** DB Stats **
+Uptime(secs): 5400.3 total, 600.0 interval
+Cumulative writes: 72K writes, 80K keys, 72K commit groups, 1.0 writes per commit group, ingest: 0.04 GB, 0.01 MB/s
+Cumulative WAL: 72K writes, 0 syncs, 72657.00 writes per sync, written: 0.04 GB, 0.01 MB/s
+Cumulative stall: 00:00:0.000 H:M:S, 0.0 percent
+Interval writes: 8001 writes, 8894 keys, 8001 commit groups, 1.0 writes per commit group, ingest: 3.37 MB, 0.01 MB/s
+Interval WAL: 8001 writes, 0 syncs, 8001.00 writes per sync, written: 0.00 GB, 0.01 MB/s
+Interval stall: 00:00:0.000 H:M:S, 0.0 percent
+Write Stall (count): write-buffer-manager-limit-stops: 0

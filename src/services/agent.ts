@@ -41,15 +41,26 @@ const getNetwork = (): string => {
 // Create HTTP agent
 export const createAgent = async (identity?: Identity) => {
   const network = getNetwork();
+  
+  // Determine if we're running on localhost
+  const isLocalhost = typeof window !== 'undefined' && 
+                     (window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.hostname === '');
+  
+  // Use production ICP network if on production network or not on localhost
+  // Only use localhost agent when actually running locally
+  const host = (network === 'ic' || !isLocalhost)
+    ? 'https://ic0.app'
+    : 'http://localhost:4943';
+  
   const agent = new HttpAgent({
-    host: network === 'ic' 
-      ? 'https://ic0.app' 
-      : 'http://localhost:4943',
+    host,
     identity,
   });
 
-  // Fetch root key for local development
-  if (network !== 'ic') {
+  // Fetch root key only for local development
+  if (isLocalhost && network !== 'ic') {
     await agent.fetchRootKey().catch((err: unknown) => {
       console.warn('Unable to fetch root key. Check if the local replica is running');
       console.error(err);
@@ -98,7 +109,15 @@ export const login = async () => {
                                         getEnvVar('INTERNET_IDENTITY_CANISTER_ID') || 
                                         'rdmx6-jaaaa-aaaaa-aaadq-cai'; // Default local II canister ID
     
-    const identityProvider = network === 'ic'
+    // Determine if we're running on localhost
+    const isLocalhost = typeof window !== 'undefined' && 
+                       (window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.hostname === '');
+    
+    // Use production Internet Identity if on production network or not on localhost
+    // Only use localhost identity provider when actually running locally
+    const identityProvider = (network === 'ic' || !isLocalhost)
       ? 'https://identity.ic0.app'
       : `http://localhost:4943?canisterId=${internetIdentityCanisterId}`;
     
