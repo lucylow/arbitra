@@ -46,13 +46,49 @@ export const getAuthClient = async () => {
 export const login = async () => {
   const client = await getAuthClient();
   
+  // Explicitly use Internet Identity - prevent wallet extensions from intercepting
+  // Some wallet extensions may try to intercept authentication calls
+  // We ensure only Internet Identity is used, not wallet connections
+  
+  // Block wallet extension auto-connect attempts
+  // Store original requestConnect if it exists to prevent auto-triggering
+  const originalPlugConnect = typeof window !== 'undefined' && window.ic?.plug?.requestConnect;
+  if (originalPlugConnect && typeof window !== 'undefined' && window.ic?.plug) {
+    // Temporarily override to prevent auto-connect during Internet Identity login
+    const plugWallet = window.ic.plug;
+    const blockedConnect = async () => {
+      console.log('Wallet connection blocked - using Internet Identity instead');
+      throw new Error('This application uses Internet Identity for authentication');
+    };
+    window.ic.plug = {
+      ...plugWallet,
+      requestConnect: blockedConnect,
+    };
+  }
+  
   return new Promise<void>((resolve, reject) => {
+    const identityProvider = process.env.DFX_NETWORK === 'ic'
+      ? 'https://identity.ic0.app'
+      : `http://localhost:4943?canisterId=${process.env.INTERNET_IDENTITY_CANISTER_ID}`;
+    
+    // Use login with explicit Internet Identity provider
+    // This should open Internet Identity, not trigger wallet connection modals
     client.login({
-      identityProvider: process.env.DFX_NETWORK === 'ic'
-        ? 'https://identity.ic0.app'
-        : `http://localhost:4943?canisterId=${process.env.INTERNET_IDENTITY_CANISTER_ID}`,
-      onSuccess: () => resolve(),
-      onError: (error: string | number | undefined) => reject(new Error(String(error))),
+      identityProvider,
+      onSuccess: () => {
+        // Restore original requestConnect after successful login
+        if (originalPlugConnect && typeof window !== 'undefined' && window.ic?.plug) {
+          window.ic.plug.requestConnect = originalPlugConnect;
+        }
+        resolve();
+      },
+      onError: (error: string | number | undefined) => {
+        // Restore original requestConnect on error
+        if (originalPlugConnect && typeof window !== 'undefined' && window.ic?.plug) {
+          window.ic.plug.requestConnect = originalPlugConnect;
+        }
+        reject(new Error(String(error)));
+      },
     });
   });
 };

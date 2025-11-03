@@ -46,8 +46,14 @@ function App() {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.MouseEvent) => {
+    // Prevent wallet extensions from intercepting the login
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     try {
+      // Explicitly use Internet Identity - this should open Internet Identity popup
+      // not trigger wallet connection modals
       await login();
       await checkAuth();
     } catch (error) {
@@ -130,7 +136,15 @@ function App() {
           <div className="login-card">
             <h2>Welcome to Arbitra</h2>
             <p>A blockchain-based platform for fair and transparent dispute resolution powered by Internet Computer Protocol.</p>
-            <button onClick={handleLogin} className="btn-primary">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogin(e);
+              }} 
+              className="btn-primary"
+              type="button"
+            >
               Login with Internet Identity
             </button>
           </div>
