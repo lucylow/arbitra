@@ -7,6 +7,8 @@ import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Nat "mo:base/Nat";
 import Int "mo:base/Int";
+import Hash "mo:base/Hash";
+import Iter "mo:base/Iter";
 import Types "types";
 
 actor ArbitraBackend {
@@ -22,7 +24,10 @@ actor ArbitraBackend {
   // State management - use stable memory
   private stable var disputeArray: [Dispute] = [];
   private stable var nextDisputeId: Nat = 1;
-  private let disputeMap = HashMap.HashMap<Nat, Dispute>(10, Nat.equal, Nat.hash);
+  private func natHash(n: Nat) : Hash.Hash { 
+    Hash.hash(n)
+  };
+  private let disputeMap = HashMap.HashMap<Nat, Dispute>(10, Nat.equal, natHash);
 
   // User profiles
   private stable var userArray: [(Principal, UserProfile)] = [];
