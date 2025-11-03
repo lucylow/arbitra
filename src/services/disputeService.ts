@@ -3,6 +3,7 @@ import { createActor, CANISTER_IDS } from './agent';
 import type { Dispute, DisputeStatus } from '../types';
 
 // IDL Factory for arbitra_backend (simplified for demo)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const arbitraBackendIdl = ({ IDL }: any) => {
   const UserRole = IDL.Variant({
     'Claimant': IDL.Null,
@@ -54,29 +55,48 @@ const arbitraBackendIdl = ({ IDL }: any) => {
 };
 
 // Helper functions to convert between Variant objects and strings
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function variantStatusToString(status: any): DisputeStatus {
   if (typeof status === 'string') {
     return status as DisputeStatus;
   }
   // Handle Variant type: { Pending: null } or similar
-  const keys = Object.keys(status);
-  if (keys.length > 0) {
-    return keys[0] as DisputeStatus;
+  if (typeof status === 'object' && status !== null) {
+    const keys = Object.keys(status);
+    if (keys.length > 0) {
+      return keys[0] as DisputeStatus;
+    }
   }
   return 'Pending'; // default
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertDisputeFromBackend(dispute: any): Dispute {
-  return {
-    ...dispute,
+  const result: Dispute = {
+    id: dispute.id,
+    claimant: dispute.claimant,
+    respondent: dispute.respondent,
+    title: dispute.title,
+    description: dispute.description,
     status: variantStatusToString(dispute.status),
     amount: typeof dispute.amount === 'bigint' ? dispute.amount : BigInt(dispute.amount),
     createdAt: typeof dispute.createdAt === 'bigint' ? dispute.createdAt : BigInt(dispute.createdAt),
     updatedAt: typeof dispute.updatedAt === 'bigint' ? dispute.updatedAt : BigInt(dispute.updatedAt),
   };
+  if (dispute.arbitrator !== null) {
+    result.arbitrator = dispute.arbitrator;
+  }
+  if (dispute.decision !== null) {
+    result.decision = dispute.decision;
+  }
+  if (dispute.escrowId !== null) {
+    result.escrowId = dispute.escrowId;
+  }
+  return result;
 }
 
 export class DisputeService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private actor: any = null;
 
   async getActor() {
@@ -99,11 +119,12 @@ export class DisputeService {
       const actor = await this.getActor();
       const result = await actor.createDispute(respondent, title, description, amount);
       
-      if ('ok' in result) {
+      if ('ok' in result && result.ok) {
         return result.ok;
-      } else {
+      } else if ('err' in result && result.err) {
         throw new Error(result.err);
       }
+      throw new Error('Unknown error creating dispute');
     } catch (error) {
       if (error instanceof Error) {
         throw error;
@@ -117,8 +138,9 @@ export class DisputeService {
       const actor = await this.getActor();
       const result = await actor.getDispute(disputeId);
       // IDL.Opt returns an array with 0 or 1 element
-      if ((result as any[]).length > 0) {
-        return convertDisputeFromBackend((result as any[])[0]);
+      if (result.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return convertDisputeFromBackend(result[0] as any);
       }
       return null;
     } catch (error) {
@@ -131,6 +153,7 @@ export class DisputeService {
     try {
       const actor = await this.getActor();
       const disputes = await actor.getAllDisputes();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return disputes.map((d: any) => convertDisputeFromBackend(d));
     } catch (error) {
       console.error('Failed to get all disputes:', error);
@@ -142,6 +165,7 @@ export class DisputeService {
     try {
       const actor = await this.getActor();
       const disputes = await actor.getDisputesByUser(user);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return disputes.map((d: any) => convertDisputeFromBackend(d));
     } catch (error) {
       console.error('Failed to get disputes by user:', error);
@@ -153,7 +177,7 @@ export class DisputeService {
     const actor = await this.getActor();
     const result = await actor.assignArbitrator(disputeId, arbitrator);
     
-    if ('err' in result) {
+    if ('err' in result && result.err) {
       throw new Error(result.err);
     }
   }
@@ -162,7 +186,7 @@ export class DisputeService {
     const actor = await this.getActor();
     const result = await actor.updateDisputeStatus(disputeId, { [status]: null });
     
-    if ('err' in result) {
+    if ('err' in result && result.err) {
       throw new Error(result.err);
     }
   }
@@ -171,7 +195,7 @@ export class DisputeService {
     const actor = await this.getActor();
     const result = await actor.submitDecision(disputeId, decision);
     
-    if ('err' in result) {
+    if ('err' in result && result.err) {
       throw new Error(result.err);
     }
   }
@@ -180,7 +204,7 @@ export class DisputeService {
     const actor = await this.getActor();
     const result = await actor.registerUser(name, email, { [role]: null });
     
-    if ('err' in result) {
+    if ('err' in result && result.err) {
       throw new Error(result.err);
     }
   }
@@ -189,7 +213,7 @@ export class DisputeService {
     const actor = await this.getActor();
     const result = await actor.linkEscrow(disputeId, escrowId);
     
-    if ('err' in result) {
+    if ('err' in result && result.err) {
       throw new Error(result.err);
     }
   }

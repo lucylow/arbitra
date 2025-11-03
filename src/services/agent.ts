@@ -1,6 +1,7 @@
-import { Actor, HttpAgent } from '@dfinity/agent';
+import { Actor, HttpAgent, Identity } from '@dfinity/agent';
 import { AuthClient } from '@dfinity/auth-client';
 import { Principal } from '@dfinity/principal';
+import type { IDL } from '@dfinity/candid';
 
 // Canister IDs (will be populated after deployment)
 // dfx generates variables in format: CANISTER_ID_<canister_name>
@@ -13,7 +14,7 @@ export const CANISTER_IDS = {
 };
 
 // Create HTTP agent
-export const createAgent = async (identity?: any) => {
+export const createAgent = async (identity?: Identity) => {
   const agent = new HttpAgent({
     host: process.env.DFX_NETWORK === 'ic' 
       ? 'https://ic0.app' 
@@ -23,7 +24,7 @@ export const createAgent = async (identity?: any) => {
 
   // Fetch root key for local development
   if (process.env.DFX_NETWORK !== 'ic') {
-    await agent.fetchRootKey().catch((err: any) => {
+    await agent.fetchRootKey().catch((err: unknown) => {
       console.warn('Unable to fetch root key. Check if the local replica is running');
       console.error(err);
     });
@@ -51,7 +52,7 @@ export const login = async () => {
         ? 'https://identity.ic0.app'
         : `http://localhost:4943?canisterId=${process.env.INTERNET_IDENTITY_CANISTER_ID}`,
       onSuccess: () => resolve(),
-      onError: (error: any) => reject(error),
+      onError: (error: string | number | undefined) => reject(new Error(String(error))),
     });
   });
 };
@@ -78,7 +79,7 @@ export const getPrincipal = async (): Promise<Principal | null> => {
 };
 
 // Create actor for canister interaction
-export const createActor = async (canisterId: string, idlFactory: any) => {
+export const createActor = async (canisterId: string, idlFactory: IDL.InterfaceFactory) => {
   const identity = await getIdentity();
   const agent = await createAgent(identity);
   
