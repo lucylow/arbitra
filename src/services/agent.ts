@@ -5,25 +5,51 @@ import type { IDL } from '@dfinity/candid';
 
 // Canister IDs (will be populated after deployment)
 // dfx generates variables in format: CANISTER_ID_<canister_name>
-// We use process.env which is defined in vite.config.ts
+// For Vite, use import.meta.env, but also check process.env for compatibility
+const getEnvVar = (key: string): string => {
+  // Try Vite's import.meta.env first (available in browser with Vite)
+  try {
+    // @ts-ignore - import.meta.env is available in Vite but TypeScript might not recognize it
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      return import.meta.env[key] || '';
+    }
+  } catch {
+    // import.meta not available (Node.js environment)
+  }
+  
+  // Fallback to process.env (Node.js/server-side)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || '';
+  }
+  
+  return '';
+};
+
 export const CANISTER_IDS = {
-  arbitra_backend: (process.env.ARBITRA_BACKEND_CANISTER_ID || '') as string,
-  evidence_manager: (process.env.EVIDENCE_MANAGER_CANISTER_ID || '') as string,
-  ai_analysis: (process.env.AI_ANALYSIS_CANISTER_ID || '') as string,
-  bitcoin_escrow: (process.env.BITCOIN_ESCROW_CANISTER_ID || '') as string,
+  arbitra_backend: getEnvVar('VITE_ARBITRA_BACKEND_CANISTER_ID') || getEnvVar('ARBITRA_BACKEND_CANISTER_ID') || '',
+  evidence_manager: getEnvVar('VITE_EVIDENCE_MANAGER_CANISTER_ID') || getEnvVar('EVIDENCE_MANAGER_CANISTER_ID') || '',
+  ai_analysis: getEnvVar('VITE_AI_ANALYSIS_CANISTER_ID') || getEnvVar('AI_ANALYSIS_CANISTER_ID') || '',
+  bitcoin_escrow: getEnvVar('VITE_BITCOIN_ESCROW_CANISTER_ID') || getEnvVar('BITCOIN_ESCROW_CANISTER_ID') || '',
+};
+
+// Get network setting
+const getNetwork = (): string => {
+  return getEnvVar('VITE_DFX_NETWORK') || getEnvVar('DFX_NETWORK') || 'local';
 };
 
 // Create HTTP agent
 export const createAgent = async (identity?: Identity) => {
+  const network = getNetwork();
   const agent = new HttpAgent({
-    host: process.env.DFX_NETWORK === 'ic' 
+    host: network === 'ic' 
       ? 'https://ic0.app' 
       : 'http://localhost:4943',
     identity,
   });
 
   // Fetch root key for local development
-  if (process.env.DFX_NETWORK !== 'ic') {
+  if (network !== 'ic') {
     await agent.fetchRootKey().catch((err: unknown) => {
       console.warn('Unable to fetch root key. Check if the local replica is running');
       console.error(err);
@@ -67,9 +93,14 @@ export const login = async () => {
   }
   
   return new Promise<void>((resolve, reject) => {
-    const identityProvider = process.env.DFX_NETWORK === 'ic'
+    const network = getNetwork();
+    const internetIdentityCanisterId = getEnvVar('VITE_INTERNET_IDENTITY_CANISTER_ID') || 
+                                        getEnvVar('INTERNET_IDENTITY_CANISTER_ID') || 
+                                        'rdmx6-jaaaa-aaaaa-aaadq-cai'; // Default local II canister ID
+    
+    const identityProvider = network === 'ic'
       ? 'https://identity.ic0.app'
-      : `http://localhost:4943?canisterId=${process.env.INTERNET_IDENTITY_CANISTER_ID}`;
+      : `http://localhost:4943?canisterId=${internetIdentityCanisterId}`;
     
     // Use login with explicit Internet Identity provider
     // This should open Internet Identity, not trigger wallet connection modals

@@ -69,8 +69,16 @@ function App() {
   const handleLogout = async () => {
     try {
       await logout();
+      // Reset state after logout (logout() reloads the page, but good to have this)
+      setAuthenticated(false);
+      setPrincipal(null);
+      setDisputes([]);
     } catch (error) {
       console.error('Logout failed:', error);
+      // Even if logout fails, reset local state
+      setAuthenticated(false);
+      setPrincipal(null);
+      setDisputes([]);
     }
   };
 
@@ -179,22 +187,25 @@ function App() {
         </div>
         <nav className="nav">
           <button 
-            className={activeTab === 'home' ? 'active' : ''} 
+            className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} 
             onClick={() => setActiveTab('home')}
           >
-            Home
+            <span className="nav-icon">🏠</span>
+            <span className="nav-label">Home</span>
           </button>
           <button 
-            className={activeTab === 'disputes' ? 'active' : ''} 
+            className={`nav-item ${activeTab === 'disputes' ? 'active' : ''}`} 
             onClick={() => setActiveTab('disputes')}
           >
-            All Disputes
+            <span className="nav-icon">📋</span>
+            <span className="nav-label">All Disputes</span>
           </button>
           <button 
-            className={activeTab === 'create' ? 'active' : ''} 
+            className={`nav-item ${activeTab === 'create' ? 'active' : ''}`} 
             onClick={() => setActiveTab('create')}
           >
-            Create Dispute
+            <span className="nav-icon">➕</span>
+            <span className="nav-label">Create Dispute</span>
           </button>
         </nav>
       </header>

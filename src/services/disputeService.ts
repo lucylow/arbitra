@@ -1,10 +1,80 @@
 import { Principal } from '@dfinity/principal';
 import type { Dispute, DisputeStatus } from '../types';
-import { getPrincipal } from './agent';
+import { createArbitraBackendActor, type ArbitraBackendActor } from './actors';
 
-// Mock dispute storage - in-memory for Lovable preview
-let mockDisputes: Dispute[] = [];
-let disputeCounter = 1;
+// Helper to convert backend status to frontend status
+function convertBackendStatus(
+  status: {
+    'EvidenceSubmission'?: null;
+    'UnderReview'?: null;
+    'Closed'?: null;
+    'Decided'?: null;
+    'Appealed'?: null;
+    'Pending'?: null;
+  }
+): DisputeStatus {
+  if ('Pending' in status) return 'Pending';
+  if ('EvidenceSubmission' in status) return 'EvidenceSubmission';
+  if ('UnderReview' in status) return 'UnderReview';
+  if ('Decided' in status) return 'Decided';
+  if ('Appealed' in status) return 'Appealed';
+  if ('Closed' in status) return 'Closed';
+  return 'Pending';
+}
+
+// Helper to convert frontend dispute to backend format
+function convertBackendDispute(backendDispute: {
+  id: string;
+  claimant: Principal;
+  respondent: Principal;
+  arbitrator?: [] | [Principal];
+  title: string;
+  description: string;
+  amount: bigint;
+  status: {
+    'EvidenceSubmission'?: null;
+    'UnderReview'?: null;
+    'Closed'?: null;
+    'Decided'?: null;
+    'Appealed'?: null;
+    'Pending'?: null;
+  };
+  createdAt: bigint;
+  updatedAt: bigint;
+  decision?: [] | [string];
+  escrowId?: [] | [string];
+}): Dispute {
+  return {
+    id: backendDispute.id,
+    claimant: backendDispute.claimant,
+    respondent: backendDispute.respondent,
+    arbitrator: backendDispute.arbitrator && backendDispute.arbitrator.length > 0
+      ? backendDispute.arbitrator[0]
+      : undefined,
+    title: backendDispute.title,
+    description: backendDispute.description,
+    amount: backendDispute.amount,
+    status: convertBackendStatus(backendDispute.status),
+    createdAt: backendDispute.createdAt,
+    updatedAt: backendDispute.updatedAt,
+    decision: backendDispute.decision && backendDispute.decision.length > 0
+      ? backendDispute.decision[0]
+      : undefined,
+    escrowId: backendDispute.escrowId && backendDispute.escrowId.length > 0
+      ? backendDispute.escrowId[0]
+      : undefined,
+  };
+}
+
+// Cache for actor instance
+let actorCache: ArbitraBackendActor | null = null;
+
+async function getActor(): Promise<ArbitraBackendActor> {
+  if (!actorCache) {
+    actorCache = await createArbitraBackendActor();
+  }
+  return actorCache;
+}
 
 export class DisputeService {
   async createDispute(
@@ -13,173 +83,153 @@ export class DisputeService {
     description: string,
     amount: bigint
   ): Promise<string> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const claimant = await getPrincipal();
-    if (!claimant) {
-      throw new Error('Not authenticated');
+    try {
+      const actor = await getActor();
+      const result = await actor.createDispute(respondent, title, description, amount);
+      
+      if ('ok' in result) {
+        return result.ok;
+      } else {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      console.error('Failed to create dispute:', error);
+      throw error;
     }
-    
-    const disputeId = `DISPUTE-${disputeCounter++}`;
-    const now = BigInt(Date.now() * 1000000); // Convert to nanoseconds
-    
-    const newDispute: Dispute = {
-      id: disputeId,
-      claimant,
-      respondent,
-      title,
-      description,
-      amount,
-      status: 'Pending',
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    mockDisputes.push(newDispute);
-    
-    // Store in localStorage to persist across page reloads
-    localStorage.setItem('mockDisputes', JSON.stringify(mockDisputes.map(d => ({
-      ...d,
-      claimant: d.claimant.toString(),
-      respondent: d.respondent.toString(),
-      arbitrator: d.arbitrator?.toString(),
-      amount: d.amount.toString(),
-      createdAt: d.createdAt.toString(),
-      updatedAt: d.updatedAt.toString(),
-    }))));
-    
-    return disputeId;
   }
 
   async getDispute(disputeId: string): Promise<Dispute | null> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    const dispute = mockDisputes.find(d => d.id === disputeId);
-    return dispute || null;
+    try {
+      const actor = await getActor();
+      const result = await actor.getDispute(disputeId);
+      
+      if (result && result.length > 0) {
+        return convertBackendDispute(result[0]);
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get dispute:', error);
+      throw error;
+    }
   }
 
   async getAllDisputes(): Promise<Dispute[]> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    return [...mockDisputes];
+    try {
+      const actor = await getActor();
+      const disputes = await actor.getAllDisputes();
+      return disputes.map(convertBackendDispute);
+    } catch (error) {
+      console.error('Failed to get all disputes:', error);
+      // Return empty array on error to prevent app from breaking
+      return [];
+    }
   }
 
   async getDisputesByUser(user: Principal): Promise<Dispute[]> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    return mockDisputes.filter(d => 
-      d.claimant.toText() === user.toText() || 
-      d.respondent.toText() === user.toText()
-    );
+    try {
+      const actor = await getActor();
+      const disputes = await actor.getDisputesByUser(user);
+      return disputes.map(convertBackendDispute);
+    } catch (error) {
+      console.error('Failed to get disputes by user:', error);
+      return [];
+    }
   }
 
   async assignArbitrator(disputeId: string, arbitrator: Principal): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    const dispute = mockDisputes.find(d => d.id === disputeId);
-    if (dispute) {
-      dispute.arbitrator = arbitrator;
-      this.saveToLocalStorage();
+    try {
+      const actor = await getActor();
+      const result = await actor.assignArbitrator(disputeId, arbitrator);
+      
+      if ('err' in result) {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      console.error('Failed to assign arbitrator:', error);
+      throw error;
     }
   }
 
   async updateDisputeStatus(disputeId: string, status: DisputeStatus): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    const dispute = mockDisputes.find(d => d.id === disputeId);
-    if (dispute) {
-      dispute.status = status;
-      dispute.updatedAt = BigInt(Date.now() * 1000000);
-      this.saveToLocalStorage();
+    try {
+      const actor = await getActor();
+      
+      // Convert frontend status to backend format
+      const backendStatus = (() => {
+        switch (status) {
+          case 'Pending': return { 'Pending': null };
+          case 'EvidenceSubmission': return { 'EvidenceSubmission': null };
+          case 'UnderReview': return { 'UnderReview': null };
+          case 'Decided': return { 'Decided': null };
+          case 'Appealed': return { 'Appealed': null };
+          case 'Closed': return { 'Closed': null };
+          default: return { 'Pending': null };
+        }
+      })();
+      
+      const result = await actor.updateDisputeStatus(disputeId, backendStatus);
+      
+      if ('err' in result) {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      console.error('Failed to update dispute status:', error);
+      throw error;
     }
   }
 
   async submitDecision(disputeId: string, decision: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    const dispute = mockDisputes.find(d => d.id === disputeId);
-    if (dispute) {
-      dispute.decision = decision;
-      dispute.status = 'Decided';
-      dispute.updatedAt = BigInt(Date.now() * 1000000);
-      this.saveToLocalStorage();
+    try {
+      const actor = await getActor();
+      const result = await actor.submitDecision(disputeId, decision);
+      
+      if ('err' in result) {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      console.error('Failed to submit decision:', error);
+      throw error;
     }
   }
 
-  async registerUser(_name: string, _email: string, _role: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    // Mock implementation - nothing to do
+  async registerUser(name: string, email: string, role: string): Promise<void> {
+    try {
+      const actor = await getActor();
+      
+      // Convert role string to backend format
+      const backendRole = (() => {
+        switch (role) {
+          case 'Arbitrator': return { 'Arbitrator': null };
+          case 'Admin': return { 'Admin': null };
+          case 'Claimant': return { 'Claimant': null };
+          case 'Respondent': return { 'Respondent': null };
+          default: return { 'Claimant': null };
+        }
+      })();
+      
+      const result = await actor.registerUser(name, email, backendRole);
+      
+      if ('err' in result) {
+        throw new Error(result.err);
+      }
+    } catch (error) {
+      console.error('Failed to register user:', error);
+      throw error;
+    }
   }
 
   async linkEscrow(disputeId: string, escrowId: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    this.loadFromLocalStorage();
-    
-    const dispute = mockDisputes.find(d => d.id === disputeId);
-    if (dispute) {
-      dispute.escrowId = escrowId;
-      this.saveToLocalStorage();
-    }
-  }
-
-  private loadFromLocalStorage() {
-    const stored = localStorage.getItem('mockDisputes');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as Array<{
-          id: string;
-          claimant: string;
-          respondent: string;
-          arbitrator?: string;
-          title: string;
-          description: string;
-          amount: string;
-          status: DisputeStatus;
-          createdAt: string;
-          updatedAt: string;
-          decision?: string;
-          escrowId?: string;
-        }>;
-        mockDisputes = parsed.map((d) => ({
-          ...d,
-          claimant: Principal.fromText(d.claimant),
-          respondent: Principal.fromText(d.respondent),
-          arbitrator: d.arbitrator ? Principal.fromText(d.arbitrator) : undefined,
-          amount: BigInt(d.amount),
-          createdAt: BigInt(d.createdAt),
-          updatedAt: BigInt(d.updatedAt),
-        }));
-        disputeCounter = mockDisputes.length + 1;
-      } catch (e) {
-        console.error('Failed to load disputes from localStorage:', e);
+    try {
+      const actor = await getActor();
+      const result = await actor.linkEscrow(disputeId, escrowId);
+      
+      if ('err' in result) {
+        throw new Error(result.err);
       }
+    } catch (error) {
+      console.error('Failed to link escrow:', error);
+      throw error;
     }
-  }
-
-  private saveToLocalStorage() {
-    localStorage.setItem('mockDisputes', JSON.stringify(mockDisputes.map(d => ({
-      ...d,
-      claimant: d.claimant.toString(),
-      respondent: d.respondent.toString(),
-      arbitrator: d.arbitrator?.toString(),
-      amount: d.amount.toString(),
-      createdAt: d.createdAt.toString(),
-      updatedAt: d.updatedAt.toString(),
-    }))));
   }
 }
 
