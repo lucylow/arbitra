@@ -25,7 +25,7 @@ export const InteractiveProcess: React.FC = () => {
           {/* connecting line */}
           <div className="absolute left-4 right-4 top-1/2 transform -translate-y-1/2 h-1 bg-gradient-to-r from-cyan-200 to-blue-200 opacity-30 rounded"></div>
 
-          {PROCESS.map((p, idx) => {
+          {PROCESS.map((p) => {
             const Icon = p.icon;
             const isActive = active === p.id;
             return (

@@ -72,12 +72,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectDispute }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center space-x-2 text-red-800">
-          <AlertCircle size={20} />
-          <span className="font-medium">Error loading disputes</span>
+      <div className="space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2 text-red-800">
+            <AlertCircle size={20} />
+            <span className="font-medium">Backend Connection Error</span>
+          </div>
+          <p className="text-red-600 mt-1">{error}</p>
+          <div className="mt-3 text-sm text-red-700">
+            <p className="font-medium">Troubleshooting steps:</p>
+            <ul className="list-disc list-inside mt-1 space-y-1">
+              <li>Ensure the local ICP replica is running: <code className="bg-red-100 px-1 rounded">dfx start</code></li>
+              <li>Verify canisters are deployed: <code className="bg-red-100 px-1 rounded">dfx deploy</code></li>
+              <li>Check that canister IDs are configured in environment variables</li>
+              <li>Run <code className="bg-red-100 px-1 rounded">dfx build</code> to generate IDL files</li>
+            </ul>
+          </div>
         </div>
-        <p className="text-red-600 mt-1">{error}</p>
       </div>
     )
   }

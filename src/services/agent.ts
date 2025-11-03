@@ -26,11 +26,37 @@ const getEnvVar = (key: string): string => {
   return '';
 };
 
+// Function to get canister ID with fallback
+const getCanisterId = (canisterName: string): string => {
+  // Try Vite env vars first (works in browser)
+  const viteKey = `VITE_${canisterName.toUpperCase()}_CANISTER_ID`;
+  const nonViteKey = `${canisterName.toUpperCase()}_CANISTER_ID`;
+  
+  let id = getEnvVar(viteKey) || getEnvVar(nonViteKey);
+  
+  // In browser context, the vite.config.ts should have injected these values via process.env
+  // Check process.env as fallback (Vite injects via define in vite.config.ts)
+  if (!id && typeof process !== 'undefined' && process.env) {
+    // Vite.config.ts defines process.env with canister IDs from dfx output
+    const processKey = `VITE_${canisterName.toUpperCase()}_CANISTER_ID`;
+    id = process.env[processKey] || process.env[nonViteKey] || '';
+  }
+  
+  // Log connection status
+  if (!id) {
+    console.warn(`⚠️  Canister ID for ${canisterName} not found. Make sure canisters are deployed and IDs are available.`);
+  } else {
+    console.log(`✅ ${canisterName} canister ID: ${id}`);
+  }
+  
+  return id || '';
+};
+
 export const CANISTER_IDS = {
-  arbitra_backend: getEnvVar('VITE_ARBITRA_BACKEND_CANISTER_ID') || getEnvVar('ARBITRA_BACKEND_CANISTER_ID') || '',
-  evidence_manager: getEnvVar('VITE_EVIDENCE_MANAGER_CANISTER_ID') || getEnvVar('EVIDENCE_MANAGER_CANISTER_ID') || '',
-  ai_analysis: getEnvVar('VITE_AI_ANALYSIS_CANISTER_ID') || getEnvVar('AI_ANALYSIS_CANISTER_ID') || '',
-  bitcoin_escrow: getEnvVar('VITE_BITCOIN_ESCROW_CANISTER_ID') || getEnvVar('BITCOIN_ESCROW_CANISTER_ID') || '',
+  arbitra_backend: getCanisterId('arbitra_backend'),
+  evidence_manager: getCanisterId('evidence_manager'),
+  ai_analysis: getCanisterId('ai_analysis'),
+  bitcoin_escrow: getCanisterId('bitcoin_escrow'),
 };
 
 // Get network setting
@@ -43,10 +69,12 @@ export const createAgent = async (identity?: Identity) => {
   const network = getNetwork();
   
   // Determine if we're running on localhost
+  // Only consider actual localhost values, not empty strings (which might be production)
   const isLocalhost = typeof window !== 'undefined' && 
+                     window.location.hostname !== '' &&
                      (window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1' ||
-                      window.location.hostname === '');
+                      window.location.hostname === '[::1]');
   
   // Use production ICP network if on production network or not on localhost
   // Only use localhost agent when actually running locally
@@ -75,6 +103,8 @@ let authClient: AuthClient | null = null;
 
 export const getAuthClient = async () => {
   if (!authClient) {
+    // Create AuthClient with default options
+    // This will use localStorage for identity persistence across browser sessions
     authClient = await AuthClient.create();
   }
   return authClient;
@@ -110,10 +140,12 @@ export const login = async () => {
                                         'rdmx6-jaaaa-aaaaa-aaadq-cai'; // Default local II canister ID
     
     // Determine if we're running on localhost
+    // Only consider actual localhost values, not empty strings (which might be production)
     const isLocalhost = typeof window !== 'undefined' && 
+                       window.location.hostname !== '' &&
                        (window.location.hostname === 'localhost' || 
                         window.location.hostname === '127.0.0.1' ||
-                        window.location.hostname === '');
+                        window.location.hostname === '[::1]');
     
     // Use production Internet Identity if on production network or not on localhost
     // Only use localhost identity provider when actually running locally
@@ -123,8 +155,10 @@ export const login = async () => {
     
     // Use login with explicit Internet Identity provider
     // This should open Internet Identity, not trigger wallet connection modals
+    // Set maxTimeToLive to 24 hours for better user experience (optional, but recommended)
     client.login({
       identityProvider,
+      maxTimeToLive: BigInt(24 * 60 * 60 * 1000 * 1000 * 1000), // 24 hours in nanoseconds
       onSuccess: () => {
         // Restore original requestConnect after successful login
         if (originalPlugConnect && typeof window !== 'undefined' && window.ic?.plug) {

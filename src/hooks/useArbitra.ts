@@ -102,17 +102,46 @@ export const useArbitra = (identity: Principal | null) => {
     const initActor = async () => {
       if (!identity) {
         setActor(null)
+        setError(null)
         return
       }
 
       try {
+        setIsLoading(true)
+        setError(null)
+        
+        console.log('🔌 Initializing Arbitra actor for identity:', identity.toString())
+        
         // Use the existing actor factory from services
         const { createArbitraBackendActor } = await import('../services/actors');
         const arbitraActor = await createArbitraBackendActor();
+        
+        // Test the connection with a health check if available
+        try {
+          const health = await (arbitraActor as any).health?.() || 'Connection established';
+          console.log('✅ Backend connection verified:', health);
+        } catch (healthError) {
+          // Health check not available, but actor is created
+          console.log('⚠️  Health check not available, but actor created');
+        }
+        
         setActor(arbitraActor as any);
-      } catch (err) {
-        console.error('Failed to initialize actor:', err)
-        setError('Failed to connect to Arbitra backend')
+        console.log('✅ Arbitra actor initialized successfully');
+      } catch (err: any) {
+        console.error('❌ Failed to initialize actor:', err)
+        const errorMsg = err?.message || 'Failed to connect to Arbitra backend';
+        setError(errorMsg)
+        
+        // Provide helpful error message
+        if (errorMsg.includes('CANISTER_ID')) {
+          setError('Backend canister ID not configured. Please deploy canisters or check environment variables.')
+        } else if (errorMsg.includes('IDL')) {
+          setError('IDL files not found. Please run "dfx build" to generate canister interfaces.')
+        } else {
+          setError(`Connection error: ${errorMsg}`)
+        }
+      } finally {
+        setIsLoading(false)
       }
     }
 

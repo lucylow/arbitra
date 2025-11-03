@@ -71,7 +71,16 @@ let actorCache: ArbitraBackendActor | null = null;
 
 async function getActor(): Promise<ArbitraBackendActor> {
   if (!actorCache) {
-    actorCache = await createArbitraBackendActor();
+    try {
+      console.log('🔌 Initializing Arbitra Backend actor...');
+      actorCache = await createArbitraBackendActor();
+      console.log('✅ Arbitra Backend actor initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize actor:', error);
+      // Clear cache so next attempt can retry
+      actorCache = null;
+      throw error;
+    }
   }
   return actorCache;
 }

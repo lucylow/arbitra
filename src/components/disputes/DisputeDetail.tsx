@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useArbitra, Dispute } from '../../hooks/useArbitra'
 import { EvidenceUpload } from '../evidence/EvidenceUpload'
 import { useInternetIdentity } from '../../hooks/useInternetIdentity'
+import { Breadcrumbs } from '../ui/Breadcrumbs'
 import { 
   Clock, 
   CheckCircle, 
@@ -72,17 +73,18 @@ export const DisputeDetail: React.FC<DisputeDetailProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs
+        items={[
+          { label: 'Dashboard', onClick: onBack },
+          { label: 'Disputes', onClick: onBack },
+          { label: dispute.title }
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onBack}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ← Back to disputes
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">{dispute.title}</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{dispute.title}</h1>
         
         <div className="flex items-center space-x-3">
           {dispute.status === 'EvidenceSubmission' && (
@@ -94,7 +96,7 @@ export const DisputeDetail: React.FC<DisputeDetailProps> = ({
             </button>
           )}
           
-          {dispute.status === 'EvidenceSubmission' && evidence.length > 0 && (
+          {dispute.status === 'EvidenceSubmission' && (
             <button
               onClick={handleAIAnalysis}
               disabled={isLoading}

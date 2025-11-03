@@ -34,6 +34,9 @@ dfx build arbitra_backend
 dfx build evidence_manager
 dfx build ai_analysis
 dfx build bitcoin_escrow
+dfx build legal_framework
+dfx build arbitrator_registry
+dfx build evidence_chain
 
 # Build frontend
 echo "🎨 Building frontend..."
@@ -65,6 +68,9 @@ echo "   - Arbitra Backend: $(dfx canister id arbitra_backend 2>/dev/null || ech
 echo "   - Evidence Manager: $(dfx canister id evidence_manager 2>/dev/null || echo 'N/A')"
 echo "   - AI Analysis: $(dfx canister id ai_analysis 2>/dev/null || echo 'N/A')"
 echo "   - Bitcoin Escrow: $(dfx canister id bitcoin_escrow 2>/dev/null || echo 'N/A')"
+echo "   - Legal Framework: $(dfx canister id legal_framework 2>/dev/null || echo 'N/A')"
+echo "   - Arbitrator Registry: $(dfx canister id arbitrator_registry 2>/dev/null || echo 'N/A')"
+echo "   - Evidence Chain: $(dfx canister id evidence_chain 2>/dev/null || echo 'N/A')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

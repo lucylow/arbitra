@@ -76,4 +76,29 @@ declare module '../../../.dfx/local/canisters/bitcoin_escrow/service.did.js' {
   export const canisterId: string;
 }
 
+// Fallback declarations for src/declarations IDL files
+declare module '../declarations/arbitra_backend.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../declarations/evidence_manager.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../declarations/ai_analysis.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
+declare module '../declarations/bitcoin_escrow.did.js' {
+  import type { IDL } from '@dfinity/candid';
+  export const idlFactory: IDL.InterfaceFactory;
+  export const canisterId: string;
+}
+
 export {};

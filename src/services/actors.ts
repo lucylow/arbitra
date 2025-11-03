@@ -18,24 +18,52 @@ async function getArbitraBackendIdl() {
       '../../../.dfx/local/canisters/arbitra_backend/service.did.js', // Local dev
       '/declarations/arbitra_backend/service.did.js', // Production bundled
       './declarations/arbitra_backend/service.did.js', // Alternative production path
+      '../../declarations/arbitra_backend/service.did.js', // Another alternative
     ];
     
     let lastError: any;
+    let triedPaths: string[] = [];
+    
     for (const modulePath of paths) {
+      triedPaths.push(modulePath);
       try {
+        console.log(`🔍 Trying to load IDL from: ${modulePath}`);
         arbitraBackendIdl = await import(modulePath as any);
         if (arbitraBackendIdl?.idlFactory) {
+          console.log(`✅ Successfully loaded IDL from: ${modulePath}`);
           return arbitraBackendIdl;
+        } else {
+          console.warn(`⚠️  IDL loaded but idlFactory not found from: ${modulePath}`);
         }
       } catch (e) {
         lastError = e;
+        // Only log if it's not a module not found error (which is expected)
+        if (!(e as any)?.message?.includes('Cannot find module')) {
+          console.warn(`⚠️  Failed to load from ${modulePath}:`, (e as any)?.message);
+        }
         continue;
       }
     }
     
-    console.error('Failed to load arbitra_backend IDL from all paths:', lastError);
-    console.warn('Make sure you have run: dfx build or IDL files are bundled');
-    throw new Error('Arbitra backend IDL not found. Please ensure IDL files are available.');
+    // Fallback: Use the stub IDL if available
+    try {
+      console.log('🔄 Trying fallback stub IDL from declarations...');
+      // @ts-ignore - declarations file may not have types but exists at runtime
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error - Dynamic import of did.js file
+      arbitraBackendIdl = await import('../declarations/arbitra_backend.did.js');
+      if (arbitraBackendIdl?.idlFactory) {
+        console.log('✅ Using fallback stub IDL');
+        return arbitraBackendIdl;
+      }
+    } catch (e) {
+      // Ignore fallback errors
+    }
+    
+    console.error('❌ Failed to load arbitra_backend IDL from all paths:', triedPaths);
+    console.error('Last error:', lastError);
+    console.warn('💡 Make sure you have run: dfx build or IDL files are bundled');
+    throw new Error('Arbitra backend IDL not found. Please ensure IDL files are available. Run "dfx build" to generate them.');
   }
   return arbitraBackendIdl;
 }
@@ -137,11 +165,26 @@ export type BitcoinEscrowActor = Awaited<ReturnType<typeof createBitcoinEscrowAc
 export async function createArbitraBackendActor() {
   const canisterId = CANISTER_IDS.arbitra_backend;
   if (!canisterId) {
-    throw new Error('ARBITRA_BACKEND_CANISTER_ID is not set');
+    const errorMsg = 'ARBITRA_BACKEND_CANISTER_ID is not set. Please deploy canisters or set environment variables.';
+    console.error('❌', errorMsg);
+    throw new Error(errorMsg);
   }
   
-  const idl = await getArbitraBackendIdl();
-  return await createActorHelper(canisterId, idl.idlFactory);
+  console.log('🔌 Creating Arbitra Backend actor with canister ID:', canisterId);
+  
+  try {
+    const idl = await getArbitraBackendIdl();
+    if (!idl || !idl.idlFactory) {
+      throw new Error('IDL factory not found. Run "dfx build" to generate IDL files.');
+    }
+    
+    const actor = await createActorHelper(canisterId, idl.idlFactory);
+    console.log('✅ Arbitra Backend actor created successfully');
+    return actor;
+  } catch (error) {
+    console.error('❌ Failed to create Arbitra Backend actor:', error);
+    throw error;
+  }
 }
 
 export async function createEvidenceManagerActor() {

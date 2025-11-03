@@ -23,12 +23,27 @@
       "main": "src/bitcoin_escrow/main.mo",
       "type": "motoko"
     },
+    "legal_framework": {
+      "main": "src/legal_framework/main.mo",
+      "type": "motoko"
+    },
+    "arbitrator_registry": {
+      "main": "src/arbitrator_registry/main.mo",
+      "type": "motoko"
+    },
+    "evidence_chain": {
+      "main": "src/evidence_chain/main.mo",
+      "type": "motoko"
+    },
     "arbitra_frontend": {
       "dependencies": [
         "arbitra_backend",
         "evidence_manager",
         "ai_analysis",
-        "bitcoin_escrow"
+        "bitcoin_escrow",
+        "legal_framework",
+        "arbitrator_registry",
+        "evidence_chain"
       ],
       "frontend": {
         "entrypoint": "dist/index.html"

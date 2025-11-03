@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { AuthClient } from '@dfinity/auth-client'
 import { Principal } from '@dfinity/principal'
 import { getAuthClient, login, logout, isAuthenticated as checkAuth, getPrincipal } from '../services/agent'
 
@@ -11,7 +10,7 @@ export const useInternetIdentity = () => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        await getAuthClient()
+        getAuthClient() // Initialize auth client
         
         const authenticated = await checkAuth()
         setIsAuthenticated(authenticated)
@@ -32,23 +31,34 @@ export const useInternetIdentity = () => {
 
   const handleLogin = async () => {
     try {
+      setIsLoading(true)
       await login()
+      
+      // Verify authentication state after login
       const authenticated = await checkAuth()
       setIsAuthenticated(authenticated)
       
       if (authenticated) {
         const principal = await getPrincipal()
         setIdentity(principal)
+      } else {
+        throw new Error('Authentication verification failed after login')
       }
     } catch (error) {
       console.error('Login failed:', error)
+      setIsAuthenticated(false)
+      setIdentity(null)
       throw error
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleLogout = async () => {
     try {
+      setIsLoading(true)
       await logout()
+      // logout() already reloads the page, but reset state just in case
       setIdentity(null)
       setIsAuthenticated(false)
     } catch (error) {
@@ -56,6 +66,12 @@ export const useInternetIdentity = () => {
       // Even if logout fails, reset local state
       setIdentity(null)
       setIsAuthenticated(false)
+      // Reload page to clear any cached state
+      if (typeof window !== 'undefined') {
+        window.location.reload()
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
