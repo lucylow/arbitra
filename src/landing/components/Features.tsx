@@ -102,9 +102,12 @@ export const Features: React.FC = () => {
               Join the future of legal tech with instant AI arbitration, immutable evidence tracking, 
               and automated cross-chain settlements.
             </p>
-            <button className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200">
-              Start Your First Case
-            </button>
+            <a 
+              href="#how-it-works" 
+              className="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200"
+            >
+              Learn How It Works
+            </a>
           </div>
         </div>
       </div>

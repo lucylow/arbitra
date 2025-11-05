@@ -13,9 +13,17 @@ import { EvidenceAnchorVisualizer } from '../components/EvidenceAnchorVisualizer
 import { TestimonialsCarousel } from '../components/TestimonialsCarousel'
 
 export const LandingPage: React.FC<{ onEnterApp?: () => void }> = ({ onEnterApp }) => {
+  const handleEnterApp = () => {
+    if (onEnterApp) {
+      onEnterApp()
+    } else {
+      window.location.href = '/app'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      <Hero onEnterApp={onEnterApp} />
+      <Hero onEnterApp={handleEnterApp} />
       <Features />
       <InteractiveProcess />
       <HowItWorks />
@@ -25,7 +33,7 @@ export const LandingPage: React.FC<{ onEnterApp?: () => void }> = ({ onEnterApp 
       <TestimonialsCarousel />
       <Testimonials />
       <UseCases />
-      <CTASection onEnterApp={onEnterApp} />
+      <CTASection onEnterApp={handleEnterApp} />
       <Footer />
     </div>
   )
