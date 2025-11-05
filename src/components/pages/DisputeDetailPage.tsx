@@ -1,6 +1,6 @@
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { DisputeDetail } from '../disputes/DisputeDetail'
+import { DisputeDetailMock } from '../disputes/DisputeDetailMock'
 
 export const DisputeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -19,7 +19,7 @@ export const DisputeDetailPage: React.FC = () => {
   }
 
   return (
-    <DisputeDetail 
+    <DisputeDetailMock 
       disputeId={id}
       onBack={handleBack}
     />
