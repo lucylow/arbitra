@@ -4,25 +4,33 @@ import { Scale, Lock, Brain, Bitcoin } from 'lucide-react'
 export const LoginPage: React.FC = () => {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasPlug, setHasPlug] = useState(false)
+
+  // Check for Plug wallet on mount
+  React.useEffect(() => {
+    const checkPlug = () => {
+      setHasPlug(window.ic?.plug !== undefined)
+    }
+    checkPlug()
+    // Check again after a short delay in case extension loads slowly
+    const timer = setTimeout(checkPlug, 500)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleInternetIdentity = async () => {
     setError('Internet Identity integration coming soon!')
   }
 
   const handlePlugWallet = async () => {
+    if (!hasPlug) {
+      window.open('https://plugwallet.ooo/', '_blank')
+      return
+    }
+
     setConnecting(true)
     setError(null)
 
     try {
-      // Check if Plug is installed
-      const hasPlug = window.ic?.plug !== undefined
-
-      if (!hasPlug) {
-        window.open('https://plugwallet.ooo/', '_blank')
-        setError('Please install Plug Wallet first')
-        setConnecting(false)
-        return
-      }
 
       // Request connection
       const connected = await window.ic.plug.requestConnect({
@@ -87,7 +95,7 @@ export const LoginPage: React.FC = () => {
             disabled={connecting}
             className="w-full border-2 border-blue-600 text-blue-600 py-4 rounded-xl font-semibold text-lg hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {connecting ? 'Connecting...' : 'Install Plug Wallet'}
+            {connecting ? 'Connecting...' : hasPlug ? 'Connect Plug Wallet' : 'Install Plug Wallet'}
           </button>
         </div>
       </div>
